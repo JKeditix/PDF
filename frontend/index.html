@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeDownloader - Premium Video & Audio Downloader</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome for high-quality icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <i class="fa-solid fa-cloud-arrow-down"></i>
+      </div>
+      <div class="logo-text">
+        Vibe<span>Downloader</span>
+      </div>
+    </div>
+    <div class="header-status" id="ffmpeg-status" title="Checks if server is ready for video/audio conversion.">
+      <i class="fa-solid fa-circle-notch fa-spin"></i> Checking Server
+    </div>
+  </header>
+
+  <main>
+    <!-- Welcome Info -->
+    <div class="welcome-section">
+      <h1>Download Video & Audio Instantly</h1>
+      <p>Save media from YouTube, Instagram, TikTok, Facebook, Twitter/X, and Vimeo at the highest available quality.</p>
+    </div>
+
+    <!-- URL Input Area -->
+    <div class="input-card">
+      <div class="input-wrapper">
+        <i class="fa-solid fa-link input-icon"></i>
+        <input type="text" id="video-url" placeholder="Paste video or audio link here..." autocomplete="off">
+        <button id="btn-analyze" class="btn btn-primary">
+          <span>Analyze URL</span> <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+      <div class="platform-badges">
+        <span class="platform-tag" data-domain="youtube"><i class="fa-brands fa-youtube"></i> YouTube</span>
+        <span class="platform-tag" data-domain="instagram"><i class="fa-brands fa-instagram"></i> Instagram</span>
+        <span class="platform-tag" data-domain="tiktok"><i class="fa-solid fa-music"></i> TikTok</span>
+        <span class="platform-tag" data-domain="facebook"><i class="fa-brands fa-facebook"></i> Facebook</span>
+        <span class="platform-tag" data-domain="twitter"><i class="fa-brands fa-x-twitter"></i> X/Twitter</span>
+        <span class="platform-tag" data-domain="vimeo"><i class="fa-brands fa-vimeo-v"></i> Vimeo</span>
+      </div>
+    </div>
+
+    <!-- Loading Spinner (State: Fetching Info) -->
+    <div class="loading-container" id="loading-fetch" style="display: none;">
+      <div class="spinner-wrapper">
+        <div class="glow-spinner"></div>
+      </div>
+      <div class="loading-title">Parsing video details...</div>
+      <div class="loading-desc">This may take a moment depending on the video host.</div>
+    </div>
+
+    <!-- Video Analysis Result Section (State: Info Fetched) -->
+    <div class="result-card" id="result-section" style="display: none;">
+      <div class="result-container">
+        
+        <!-- Thumbnail column -->
+        <div class="result-media">
+          <img id="res-thumbnail" src="" alt="Video Thumbnail">
+          <div class="media-duration" id="res-duration">0:00</div>
+          <div class="media-platform-badge" id="res-platform-badge">
+            <i class="fa-brands fa-youtube"></i> YouTube
+          </div>
+        </div>
+
+        <!-- Options / Downloader column -->
+        <div class="result-details">
+          <h2 id="res-title">Video Title</h2>
+          
+          <div class="options-grid">
+            <div class="option-column">
+              <label class="field-label">Format Type</label>
+              <div class="format-chips" id="format-container">
+                <button class="chip active" data-format="mp4">MP4</button>
+                <button class="chip" data-format="webm">WEBM</button>
+                <button class="chip" data-format="mp3"><i class="fa-solid fa-music"></i> MP3 (Audio)</button>
+                <button class="chip" data-format="m4a"><i class="fa-solid fa-volume-high"></i> M4A (Audio)</button>
+              </div>
+            </div>
+
+            <div class="option-column">
+              <label class="field-label">Preferred Quality</label>
+              <div class="quality-chips" id="quality-container">
+                <button class="chip active" data-quality="best">Best Quality</button>
+                <button class="chip" data-quality="1080p">1080p (Full HD)</button>
+                <button class="chip" data-quality="720p">720p (HD)</button>
+                <button class="chip" data-quality="360p">360p (SD)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download Action Panel -->
+          <div class="download-action-panel">
+            <button id="btn-download" class="btn btn-primary btn-large btn-download-state">
+              <i class="fa-solid fa-arrow-down-to-bracket"></i> Download Now
+            </button>
+            
+            <!-- Live Progress Details -->
+            <div class="progress-section" id="progress-container" style="display: none;">
+              <div class="progress-info">
+                <span class="progress-status" id="progress-status">Downloading file...</span>
+                <span class="progress-stats" id="progress-stats">0 MB / 0 MB (0 KB/s)</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 VibeDownloader. All downloads are processed using yt-dlp.</p>
+  </footer>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "users": [
+    {
+      "id": "u_rptzcisw",
+      "name": "jituu",
+      "email": "jiteshm0001@gmail.com",
+      "password": "57285d5836ad353828f7b7dd9782ed0677a91af08ef4a1dd143287525db8a543",
+      "created_at": "2026-08-11T19:19:36.052Z"
+    },
+    {
+      "id": "u_k4y9f7y3",
+      "name": "jitesh",
+      "email": "jiteshm0524@gmail.com",
+      "password": "57285d5836ad353828f7b7dd9782ed0677a91af08ef4a1dd143287525db8a543",
+      "created_at": "2026-08-11T19:22:31.728Z"
+    }
+  ],
+  "usage": [
+    {
+      "user_id": "u_rptzcisw",
+      "free_uses_total": 2,
+      "free_uses_used": 2,
+      "paid_uses": 0
+    },
+    {
+      "user_id": "u_k4y9f7y3",
+      "free_uses_total": 2,
+      "free_uses_used": 1,
+      "paid_uses": 0
+    }
+  ],
+  "payments": []
+}
