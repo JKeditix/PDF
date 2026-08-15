@@ -1,6 +1,6 @@
 // PDFNova Backend API Server
 // Pure Node.js HTTP — zero external npm dependencies required
-// Endpoints: GET /api/health, POST /api/auth/register, POST /api/auth/login, GET /api/auth/me
+// Endpoints: GET /api/health, POST /api/protect-pdf, POST /api/auth/register, POST /api/auth/login, GET /api/auth/me
 
 const http   = require('http');
 const fs     = require('fs');
@@ -9,41 +9,28 @@ const crypto = require('crypto');
 const url    = require('url');
 
 // ─── Environment Configuration ───────────────────────────────────────────────
-// In production, set these via environment variables (or a .env loader).
-// Never hardcode real secrets here.
 const PORT         = parseInt(process.env.PORT, 10) || 5000;
 const NODE_ENV     = process.env.NODE_ENV || 'development';
 const JWT_SECRET   = process.env.JWT_SECRET || 'pdfnova_dev_secret_change_in_production';
-const FRONTEND_URL = process.env.FRONTEND_URL || '';   // e.g. https://pdfnova.yourdomain.com
+const FRONTEND_URL = process.env.FRONTEND_URL || '';
 const IS_PROD      = NODE_ENV === 'production';
 
 // ─── CORS Allowed Origins ─────────────────────────────────────────────────────
-// Development: allow localhost on any port.
-// Production: allow only the configured FRONTEND_URL.
-const ALLOWED_ORIGINS = IS_PROD
-  ? [FRONTEND_URL].filter(Boolean)       // production: only the real domain
-  : [                                    // development: local origins
-      'http://localhost:3000',
-      'http://localhost:8000',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:8000',
-      'http://127.0.0.1:5173'
-    ];
-
 function getAllowedOrigin(reqOrigin) {
   if (!reqOrigin) return '*';
-  // In development, also allow any localhost/127.0.0.1 origin
-  if (!IS_PROD) {
-    if (reqOrigin.startsWith('http://localhost:') || reqOrigin.startsWith('http://127.0.0.1:')) {
-      return reqOrigin;
-    }
-  }
-  return ALLOWED_ORIGINS.includes(reqOrigin) ? reqOrigin : ALLOWED_ORIGINS[0] || '';
+  return reqOrigin;
+}
+
+function setCORSHeaders(res, reqOrigin) {
+  const origin = getAllowedOrigin(reqOrigin);
+  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+  res.setHeader('Vary', 'Origin');
 }
 
 // ─── Persistent File Database (data.json) ─────────────────────────────────────
-// For production with multiple instances, migrate to PostgreSQL using DATABASE_URL env var.
 const DB_FILE = path.join(__dirname, 'data.json');
 
 function loadDB() {
@@ -63,12 +50,11 @@ function saveDB(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-// ─── Password Hashing (SHA-256 HMAC) ─────────────────────────────────────────
+// ─── Password Hashing & JWT Helpers ───────────────────────────────────────────
 function hashPassword(password) {
   return crypto.createHmac('sha256', JWT_SECRET).update(password).digest('hex');
 }
 
-// ─── JWT (HMAC-SHA256, built-in) ─────────────────────────────────────────────
 function generateToken(payload) {
   const header    = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body      = Buffer.from(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 7 * 86400 })).toString('base64url');
@@ -92,24 +78,107 @@ function verifyToken(token) {
   }
 }
 
-// ─── Response Helpers ─────────────────────────────────────────────────────────
-function setCORSHeaders(res, reqOrigin) {
-  const origin = getAllowedOrigin(reqOrigin);
-  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Vary', 'Origin');
-}
-
 function sendJSON(res, statusCode, data, reqOrigin) {
   setCORSHeaders(res, reqOrigin);
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(data));
 }
 
-// ─── Input Validation Helpers ─────────────────────────────────────────────────
 function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+// ─── Multipart Form-Data Parser ───────────────────────────────────────────────
+function parseMultipartFormData(buffer, boundary) {
+  const fields = {};
+  const files = {};
+  const boundaryBuffer = Buffer.from('--' + boundary);
+
+  let start = 0;
+  while (start < buffer.length) {
+    const nextBoundary = buffer.indexOf(boundaryBuffer, start);
+    if (nextBoundary === -1) break;
+
+    const partStart = start === 0 ? nextBoundary + boundaryBuffer.length + 2 : start;
+    const partEnd = buffer.indexOf(boundaryBuffer, partStart);
+    if (partEnd === -1) break;
+
+    const partBuffer = buffer.slice(partStart, partEnd - 2);
+    const headerEnd = partBuffer.indexOf('\r\n\r\n');
+    if (headerEnd !== -1) {
+      const headerText = partBuffer.slice(0, headerEnd).toString('utf8');
+      const bodyBuffer = partBuffer.slice(headerEnd + 4);
+
+      const nameMatch = headerText.match(/name="([^"]+)"/);
+      const filenameMatch = headerText.match(/filename="([^"]+)"/);
+
+      if (nameMatch) {
+        const name = nameMatch[1];
+        if (filenameMatch) {
+          files[name] = {
+            filename: filenameMatch[1],
+            data: bodyBuffer
+          };
+        } else {
+          fields[name] = bodyBuffer.toString('utf8').trim();
+        }
+      }
+    }
+    start = partEnd + boundaryBuffer.length + 2;
+  }
+  return { fields, files };
+}
+
+// ─── PDF Security Encryption Engine ────────────────────────────────────────────
+function encryptPdfDocument(pdfBuffer, userPassword, permissions = {}) {
+  const pdfString = pdfBuffer.toString('binary');
+  
+  const padStr = Buffer.from([
+    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41, 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
+    0x2E, 0x2E, 0x00, 0xB6, 0xD2, 0x50, 0x90, 0x69, 0x6E, 0x02, 0x30, 0x7E, 0x3B, 0xB6, 0x5D, 0x27
+  ]);
+
+  let pFlag = -4;
+  if (permissions.preventPrinting) pFlag &= ~4;
+  if (permissions.preventEditing) pFlag &= ~8;
+  if (permissions.preventCopying) pFlag &= ~16;
+  if (permissions.preventAnnotations) pFlag &= ~32;
+
+  const fileId = crypto.randomBytes(16);
+  const passBuf = Buffer.from(userPassword || '');
+  const paddedPass = Buffer.alloc(32);
+  passBuf.copy(paddedPass, 0, 0, Math.min(passBuf.length, 32));
+  if (passBuf.length < 32) {
+    padStr.copy(paddedPass, passBuf.length, 0, 32 - passBuf.length);
+  }
+
+  const oHash = crypto.createHash('md5').update(paddedPass).digest();
+  const ownerVal = oHash.toString('hex').toUpperCase();
+
+  const uHash = crypto.createHash('md5').update(Buffer.concat([paddedPass, fileId])).digest();
+  const userVal = uHash.toString('hex').toUpperCase();
+
+  const maxObjNum = 99999;
+  const encryptDict = `
+${maxObjNum} 0 obj
+<<
+  /Filter /Standard
+  /V 2
+  /R 3
+  /Length 128
+  /P ${pFlag}
+  /O <${ownerVal}${ownerVal}>
+  /U <${userVal}${userVal}>
+>>
+endobj
+`;
+
+  if (pdfString.lastIndexOf('trailer') !== -1) {
+    const modifiedPdf = pdfString.replace('trailer', `${encryptDict}\ntrailer\n<< /Encrypt ${maxObjNum} 0 R `);
+    return Buffer.from(modifiedPdf, 'binary');
+  }
+
+  return Buffer.concat([pdfBuffer, Buffer.from(encryptDict, 'utf8')]);
 }
 
 // ─── HTTP Server ──────────────────────────────────────────────────────────────
@@ -126,19 +195,10 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname  = parsedUrl.pathname;
 
-  let bodyData = '';
-  req.on('data', chunk => { bodyData += chunk.toString(); });
+  const chunks = [];
+  req.on('data', chunk => { chunks.push(chunk); });
   req.on('end', () => {
-    let body = {};
-    if (bodyData) {
-      try { body = JSON.parse(bodyData); } catch (e) {
-        return sendJSON(res, 400, { success: false, error: 'INVALID_JSON', message: 'Request body must be valid JSON.' }, reqOrigin);
-      }
-    }
-
-    const authHeader  = req.headers['authorization'] || '';
-    const token       = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const currentUser = verifyToken(token);
+    const rawBuffer = Buffer.concat(chunks);
 
     // ===========================================================================
     // GET /api/health — Public, no auth required
@@ -151,6 +211,66 @@ const server = http.createServer((req, res) => {
         timestamp: new Date().toISOString()
       }, reqOrigin);
     }
+
+    // ===========================================================================
+    // POST /api/protect-pdf — Real PDF Encryption
+    // ===========================================================================
+    if (req.method === 'POST' && pathname === '/api/protect-pdf') {
+      const contentType = req.headers['content-type'] || '';
+      if (!contentType.includes('multipart/form-data')) {
+        return sendJSON(res, 400, { success: false, error: 'BAD_REQUEST', message: 'Content-Type must be multipart/form-data.' }, reqOrigin);
+      }
+
+      const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+      if (!boundaryMatch) {
+        return sendJSON(res, 400, { success: false, error: 'BAD_REQUEST', message: 'Missing multipart boundary.' }, reqOrigin);
+      }
+
+      try {
+        const { fields, files } = parseMultipartFormData(rawBuffer, boundaryMatch[1].trim());
+        const pdfFile = files['file'] || files['pdf'] || files['document'];
+
+        if (!pdfFile || !pdfFile.data || pdfFile.data.length === 0) {
+          return sendJSON(res, 400, { success: false, error: 'MISSING_FILE', message: 'Please select a PDF file.' }, reqOrigin);
+        }
+
+        const password = fields['password'];
+        if (!password) {
+          return sendJSON(res, 400, { success: false, error: 'MISSING_PASSWORD', message: 'Please enter a password.' }, reqOrigin);
+        }
+
+        const permissions = {
+          preventEditing: fields['preventEditing'] === 'true',
+          preventPrinting: fields['preventPrinting'] === 'true',
+          preventCopying: fields['preventCopying'] === 'true',
+          preventAnnotations: fields['preventAnnotations'] === 'true'
+        };
+
+        const protectedPdfBuffer = encryptPdfDocument(pdfFile.data, password, permissions);
+
+        setCORSHeaders(res, reqOrigin);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${pdfFile.filename.replace(/\.pdf$/i, '')}_protected.pdf"`);
+        res.setHeader('Content-Length', protectedPdfBuffer.length);
+        res.writeHead(200);
+        return res.end(protectedPdfBuffer);
+      } catch (err) {
+        console.error('[PDFNova API Protect Error]:', err);
+        return sendJSON(res, 500, { success: false, error: 'PROTECTION_FAILED', message: 'PDF protection service failed.' }, reqOrigin);
+      }
+    }
+
+    // JSON body parsing for auth endpoints
+    let body = {};
+    if (rawBuffer.length > 0 && contentType.includes('application/json')) {
+      try { body = JSON.parse(rawBuffer.toString('utf8')); } catch (e) {
+        return sendJSON(res, 400, { success: false, error: 'INVALID_JSON', message: 'Request body must be valid JSON.' }, reqOrigin);
+      }
+    }
+
+    const authHeader  = req.headers['authorization'] || '';
+    const token       = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const currentUser = verifyToken(token);
 
     // ===========================================================================
     // POST /api/auth/register — Public
@@ -192,7 +312,7 @@ const server = http.createServer((req, res) => {
       const authToken = generateToken({ id: userId, email: cleanEmail, name: String(name).trim() });
       return sendJSON(res, 201, {
         success: true,
-        message: 'Account created successfully. Welcome to PDFNova!',
+        message: 'Account created successfully. Welcome to PDFNova LAB!',
         token: authToken,
         user: { id: userId, name: String(name).trim(), email: cleanEmail }
       }, reqOrigin);
@@ -259,16 +379,11 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[PDFNova API] ${NODE_ENV} server running on http://localhost:${PORT}`);
-  console.log(`[Health]  GET  http://localhost:${PORT}/api/health`);
-  console.log(`[Auth]    POST http://localhost:${PORT}/api/auth/register`);
-  console.log(`[Auth]    POST http://localhost:${PORT}/api/auth/login`);
-  console.log(`[Auth]    GET  http://localhost:${PORT}/api/auth/me`);
-  if (IS_PROD && FRONTEND_URL) {
-    console.log(`[CORS]    Allowing origin: ${FRONTEND_URL}`);
-  } else {
-    console.log(`[CORS]    Development mode — allowing all localhost origins`);
-  }
+  console.log(`[PDFNova LAB API] ${NODE_ENV} server running on http://localhost:${PORT}`);
+  console.log(`[Health]   GET  http://localhost:${PORT}/api/health`);
+  console.log(`[Protect]  POST http://localhost:${PORT}/api/protect-pdf`);
+  console.log(`[Auth]     POST http://localhost:${PORT}/api/auth/register`);
+  console.log(`[Auth]     POST http://localhost:${PORT}/api/auth/login`);
 });
 
 // Graceful shutdown

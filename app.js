@@ -549,7 +549,7 @@ async function protectPdf(files, options = {}) {
   const password = options.password;
   const confirmPassword = options.confirmPassword;
 
-  if (!password) throw new Error('Please enter a password to protect the PDF.');
+  if (!password) throw new Error('Please enter a password.');
   if (confirmPassword !== undefined && password !== confirmPassword) throw new Error('Passwords do not match.');
 
   ToastManager.show('Sending protection request to production backend...', 'info');
@@ -562,27 +562,40 @@ async function protectPdf(files, options = {}) {
   if (options.preventCopying) formData.append('preventCopying', 'true');
   if (options.preventAnnotations) formData.append('preventAnnotations', 'true');
 
+  const targetUrl = `${CONFIG.API_BASE_URL}/api/protect-pdf`;
+  console.log('[PDFNova LAB Protect] Request URL:', targetUrl);
+
   let res;
   try {
-    res = await fetch(`${CONFIG.API_BASE_URL}/api/protect-pdf`, {
+    res = await fetch(targetUrl, {
       method: 'POST',
       body: formData
     });
   } catch (err) {
-    throw new Error('PDFNova LAB server is unavailable. Please try again.');
+    console.error('[PDFNova LAB Protect] Network/CORS Fetch Error:', err);
+    throw new Error('PDF protection service could not be reached.');
   }
 
+  console.log('[PDFNova LAB Protect] HTTP Status:', res.status);
+
   if (!res.ok) {
-    let errMsg = 'PDF protection failed.';
-    try {
-      const errData = await res.json();
-      if (errData && errData.message) errMsg = errData.message;
-    } catch (_) {}
-    throw new Error(errMsg);
+    let errMsg = '';
+    if (res.status === 404) errMsg = 'Protect PDF endpoint not found.';
+    else if (res.status === 405) errMsg = 'Protect PDF method is not supported.';
+    else if (res.status === 413) errMsg = 'PDF file is too large.';
+    else if (res.status === 415) errMsg = 'Unsupported file type.';
+    else if (res.status >= 500) errMsg = 'PDF protection service failed.';
+    else {
+      try {
+        const errData = await res.json();
+        if (errData && errData.message) errMsg = errData.message;
+      } catch (_) {}
+    }
+    throw new Error(errMsg || `Protect PDF failed (HTTP ${res.status}).`);
   }
 
   const blob = await res.blob();
-  validateOutput(blob, ['pdf', 'octet-stream']);
+  validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_protected.pdf`;
 
   renderResultScreen({
@@ -2183,8 +2196,11 @@ function renderProtectPdfTool(container, tool) {
     }
   };
 
-  // Submit Handler
+  // Submit Handler with processing lock
+  let isProcessing = false;
   submitBtn.onclick = async () => {
+    if (isProcessing) return;
+
     if (!selectedPdfFile) {
       ToastManager.show('Please select a PDF file.', 'warning');
       return;
@@ -2203,7 +2219,9 @@ function renderProtectPdfTool(container, tool) {
       return;
     }
 
-    ToastManager.show('Sending protection request to production backend...', 'info');
+    isProcessing = true;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Protecting PDF...';
 
     const options = {
       password: pass,
@@ -2215,15 +2233,14 @@ function renderProtectPdfTool(container, tool) {
     };
 
     try {
-      console.log('[PDFNova LAB Protect] Endpoint:', `${CONFIG.API_BASE_URL}/api/protect-pdf`);
       await protectPdf(selectedPdfFile, options);
     } catch (err) {
       console.error('[PDFNova LAB Protect] Processing error:', err);
-      let errMsg = err.message || 'PDF protection failed.';
-      if (errMsg.includes('Failed to fetch')) {
-        errMsg = 'PDFNova LAB server is unavailable. Please try again.';
-      }
-      ToastManager.show(errMsg, 'danger');
+      ToastManager.show(err.message || 'PDF protection failed.', 'danger');
+    } finally {
+      isProcessing = false;
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Protect PDF';
     }
   };
 }
