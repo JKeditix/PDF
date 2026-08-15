@@ -1,5 +1,6 @@
 // PDFNova - Complete Tool Processing Engine
 // Real implementations for all PDF, Document, Image, and Advanced tools.
+// PDFNova automatic deployment test
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const { jsPDF } = window.jspdf;
