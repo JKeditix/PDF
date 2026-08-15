@@ -664,11 +664,11 @@ async function openQrGenerator(container, tool) {
   const renderInputs = () => {
     const val = typeSelect.value;
     if (val === 'phone') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="8824044491" placeholder="8824044491">`;
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="" placeholder="e.g. 9876543210 or +919876543210" autocomplete="off">`;
     } else if (val === 'url') {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Target URL:</label><input id="qr-inp-url" class="input-control" type="url" value="https://example.com" placeholder="https://example.com">`;
     } else if (val === 'text') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3" placeholder="Hello PDFNova">Hello PDFNova</textarea>`;
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3" placeholder="Hello PDFNova LAB">Hello PDFNova LAB</textarea>`;
     } else if (val === 'email') {
       inputsDiv.innerHTML = `
         <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Recipient Email:</label><input id="qr-inp-email" class="input-control" type="email" value="test@example.com" placeholder="test@example.com">
@@ -686,12 +686,46 @@ async function openQrGenerator(container, tool) {
         </select>`;
     } else if (val === 'vcard') {
       inputsDiv.innerHTML = `
-        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Full Name:</label><input id="qr-inp-name" class="input-control" type="text" value="John Doe" placeholder="John Doe">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Phone Number:</label><input id="qr-inp-vphone" class="input-control" type="tel" value="+919999999999" placeholder="+919999999999">`;
+        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Full Name:</label><input id="qr-inp-name" class="input-control" type="text" value="" placeholder="Full Name (e.g. John Doe)">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Phone Number:</label><input id="qr-inp-vphone" class="input-control" type="tel" value="" placeholder="e.g. 9876543210 or +919876543210">`;
     } else {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Share Link:</label><input id="qr-inp-share" class="input-control" type="url" value="${window.location.href}" readonly>`;
     }
     updateQr();
+  };
+
+  const normalizePhonePayload = (rawInput) => {
+    if (!rawInput) return '';
+    let str = rawInput.trim();
+    if (str.toLowerCase().startsWith('tel:')) {
+      str = str.slice(4).trim();
+    }
+    const cleaned = str.replace(/[\s\-\(\)]/g, '');
+    if (!cleaned) return '';
+
+    if (cleaned.startsWith('+')) {
+      const digits = cleaned.slice(1);
+      if (/^\d{7,15}$/.test(digits)) return `tel:${cleaned}`;
+      return '';
+    }
+
+    if (/^\d{10}$/.test(cleaned)) {
+      return `tel:+91${cleaned}`;
+    }
+
+    if (/^0\d{10}$/.test(cleaned)) {
+      return `tel:+91${cleaned.slice(1)}`;
+    }
+
+    if (/^91\d{10}$/.test(cleaned)) {
+      return `tel:+${cleaned}`;
+    }
+
+    if (/^\d{7,15}$/.test(cleaned)) {
+      return `tel:+91${cleaned}`;
+    }
+
+    return '';
   };
 
   const getQrText = () => {
@@ -700,8 +734,7 @@ async function openQrGenerator(container, tool) {
     
     if (v === 'phone') {
       const raw = gv('qr-inp-phone');
-      if (!raw) return 'tel:8824044491';
-      return raw.startsWith('tel:') ? raw : `tel:${raw}`;
+      return normalizePhonePayload(raw);
     }
     if (v === 'url') {
       const raw = gv('qr-inp-url');
@@ -709,7 +742,7 @@ async function openQrGenerator(container, tool) {
       return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
     }
     if (v === 'text') {
-      return gv('qr-inp-text') || 'Hello PDFNova';
+      return gv('qr-inp-text') || 'Hello PDFNova LAB';
     }
     if (v === 'email') {
       const email = gv('qr-inp-email') || 'test@example.com';
@@ -729,25 +762,41 @@ async function openQrGenerator(container, tool) {
       return `WIFI:T:${sec};S:${ssid};P:${pass};;`;
     }
     if (v === 'vcard') {
-      const name = gv('qr-inp-name') || 'John Doe';
-      const phone = gv('qr-inp-vphone') || '+919999999999';
-      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${phone}\nEND:VCARD`;
+      const name = gv('qr-inp-name') || '';
+      const rawPhone = gv('qr-inp-vphone');
+      const phonePayload = normalizePhonePayload(rawPhone);
+      const cleanPhone = phonePayload ? phonePayload.replace(/^tel:/, '') : '';
+      if (!name && !cleanPhone) return '';
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name || 'Contact'}\nTEL:${cleanPhone}\nEND:VCARD`;
     }
     return gv('qr-inp-share') || window.location.href;
   };
 
   const updateQr = () => {
+    const vType = typeSelect.value;
     const payload = getQrText();
     const fgColor = colorFg.value || '#000000';
-
-    if (payloadPreview) {
-      payloadPreview.textContent = payload ? `Payload: ${payload}` : '';
-    }
 
     if (!displayWrapper) return;
 
     // DOM Cleanup: clear previous QR instances
     displayWrapper.innerHTML = '';
+
+    if (vType === 'phone' && !payload) {
+      if (payloadPreview) payloadPreview.textContent = 'Enter a 10-digit phone number (e.g. 9876543210)';
+      displayWrapper.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:1rem;text-align:center;">Enter phone number to generate QR code</div>';
+      return;
+    }
+
+    if (!payload) {
+      if (payloadPreview) payloadPreview.textContent = 'Please fill in details to generate QR';
+      displayWrapper.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:1rem;text-align:center;">Enter details to generate QR code</div>';
+      return;
+    }
+
+    if (payloadPreview) {
+      payloadPreview.textContent = `Payload: ${payload}`;
+    }
 
     if (typeof window.QRCode !== 'function') {
       console.error('window.QRCode library is not loaded or unavailable.');
@@ -800,6 +849,8 @@ async function openQrGenerator(container, tool) {
   colorFg.onchange    = updateQr;
   inputsDiv.oninput   = updateQr;
   inputsDiv.onchange  = updateQr;
+  inputsDiv.onkeyup   = updateQr;
+  inputsDiv.onpaste   = updateQr;
   renderInputs();
 
   downloadBtn.onclick = async () => {
