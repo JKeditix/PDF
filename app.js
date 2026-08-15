@@ -1331,36 +1331,52 @@ const TOOLS = [
 // SYSTEM HEALTH MONITORING
 // ============================================================================
 
+let isCheckingHealth = false;
+
 async function checkSystemHealth(maxAttempts = 3) {
+  if (isCheckingHealth) return false;
+  isCheckingHealth = true;
+
   const badge = document.getElementById('sys-status-badge');
   const text  = document.getElementById('sys-status-text');
 
   if (text) text.textContent = 'Starting PDFNova LAB services...';
   if (badge) badge.className = 'status-badge checking';
 
-  const delays = [2000, 3000, 5000];
+  const healthUrl = `${CONFIG.API_BASE_URL}/api/health`;
+  console.log('[PDFNova LAB API Base]:', CONFIG.API_BASE_URL);
+  console.log('[PDFNova LAB Health URL]:', healthUrl);
+
+  const delays = [2000, 5000, 10000];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const res = await fetch(`${CONFIG.API_BASE_URL}/api/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(healthUrl, { signal: AbortSignal.timeout(6000) });
+      console.log('[PDFNova LAB Health Status]:', res.status);
+
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'ok' || data.healthy || res.status === 200) {
+        console.log('[PDFNova LAB Health Response]:', data);
+
+        if (data && (data.status === 'ok' || data.healthy || res.status === 200)) {
           if (badge) badge.className = 'status-badge online';
           if (text) text.textContent = 'Backend Connected';
+          isCheckingHealth = false;
           return true;
         }
       }
     } catch (e) {
-      console.warn(`[PDFNova LAB] Health check attempt ${i + 1} failed:`, e);
+      console.warn(`[PDFNova LAB] Health check attempt ${i + 1}/${maxAttempts} error:`, e.message || e);
     }
+
     if (i < maxAttempts - 1) {
-      await new Promise(r => setTimeout(r, delays[i]));
+      await new Promise(r => setTimeout(r, delays[i] || 3000));
     }
   }
 
   if (badge) badge.className = 'status-badge offline';
   if (text) text.textContent = 'Backend Offline';
+  isCheckingHealth = false;
   return false;
 }
 
