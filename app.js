@@ -1322,8 +1322,7 @@ const ThemeManager = {
   key: 'pdfnova_theme',
   init() {
     const saved = localStorage.getItem(this.key);
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    this.applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+    this.applyTheme(saved || 'dark');
     const btn = document.getElementById('theme-toggle-btn');
     if (btn) {
       btn.onclick = () => {
