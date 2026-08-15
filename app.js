@@ -573,7 +573,7 @@ async function protectPdf(files, options = {}) {
   }
 
   if (!res.ok) {
-    let errMsg = 'PDFNova LAB server is unavailable. Please try again.';
+    let errMsg = 'PDF protection failed.';
     try {
       const errData = await res.json();
       if (errData && errData.message) errMsg = errData.message;
@@ -1817,6 +1817,7 @@ function renderToolWorkspace(tool) {
   if (tool.id === 'pdf-editor')  renderPdfEditorTool(container, tool);
   else if (tool.id === 'word-editor') renderWordEditorTool(container, tool);
   else if (tool.id === 'qr-generator') openQrGenerator(container, tool);
+  else if (tool.id === 'protect-pdf') renderProtectPdfTool(container, tool);
   else renderUniversalConverterTool(container, tool);
 }
 
@@ -2037,6 +2038,194 @@ function renderResultScreen({ toolName, filename, metrics, onDownload }) {
       renderToolWorkspace(tool);
     };
   }
+}
+
+// ============================================================================
+// DEDICATED PROTECT PDF WORKSPACE RENDERER
+// ============================================================================
+
+function renderProtectPdfTool(container, tool) {
+  let selectedPdfFile = null;
+
+  container.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);padding:1.75rem;border-radius:var(--radius-xl);max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;box-shadow:var(--shadow-lg);">
+      <div style="font-weight:800;font-size:1.25rem;color:var(--text-dark);display:flex;align-items:center;gap:0.5rem;">
+        <i class="fa-solid fa-lock" style="color:var(--primary);"></i> Protect PDF Document
+      </div>
+
+      <!-- File Selector / Dropzone -->
+      <div class="dropzone" id="protect-dropzone" style="cursor:pointer;padding:1.5rem;border:2px dashed var(--border-color);border-radius:var(--radius-lg);text-align:center;background:var(--bg-main);transition:all 0.2s;">
+        <div class="dropzone-icon" style="font-size:2rem;color:var(--primary);margin-bottom:0.5rem;"><i class="fa-solid fa-file-pdf"></i></div>
+        <div id="protect-file-name" style="font-weight:800;font-size:1.1rem;color:var(--text-dark);">Choose PDF file or drop here</div>
+        <div id="protect-file-meta" style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">Only .pdf files are accepted</div>
+        <input type="file" class="file-input" id="protect-file-input" accept=".pdf" style="display:none;">
+      </div>
+
+      <!-- Passwords & Protection Options Form -->
+      <div style="display:flex;flex-direction:column;gap:1.1rem;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Encryption Password *:</label>
+            <input id="protect-password" class="input-control" type="password" placeholder="Enter password" required autocomplete="off">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Confirm Password *:</label>
+            <input id="protect-confirm-password" class="input-control" type="password" placeholder="Re-enter password" required autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Password Strength Meter -->
+        <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.85rem;background:var(--bg-main);padding:0.75rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border-color);">
+          <span style="color:var(--text-muted);font-weight:600;">Password Strength:</span>
+          <div style="flex:1;height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;">
+            <div id="protect-strength-fill" style="width:0%;height:100%;background:var(--danger);transition:all 0.3s;"></div>
+          </div>
+          <strong id="protect-strength-text" style="color:var(--text-muted);min-width:65px;text-align:right;">None</strong>
+        </div>
+
+        <!-- Protection Options -->
+        <div style="background:var(--bg-main);padding:1rem 1.25rem;border-radius:var(--radius-lg);border:1px solid var(--border-color);display:flex;flex-direction:column;gap:0.6rem;">
+          <div style="font-weight:700;color:var(--text-dark);font-size:0.9rem;margin-bottom:0.25rem;">Protection Permissions:</div>
+          <div>
+            <input type="checkbox" id="protect-opt-open" checked disabled>
+            <label for="protect-opt-open" style="font-weight:600;margin-left:0.4rem;color:var(--text-dark);">☑ Require password to open document</label>
+          </div>
+          <div>
+            <input type="checkbox" id="protect-opt-edit" checked>
+            <label for="protect-opt-edit" style="font-weight:600;margin-left:0.4rem;color:var(--text-dark);">Prevent editing & content modifications</label>
+          </div>
+          <div>
+            <input type="checkbox" id="protect-opt-print">
+            <label for="protect-opt-print" style="font-weight:600;margin-left:0.4rem;color:var(--text-dark);">Prevent printing document</label>
+          </div>
+          <div>
+            <input type="checkbox" id="protect-opt-copy" checked>
+            <label for="protect-opt-copy" style="font-weight:600;margin-left:0.4rem;color:var(--text-dark);">Prevent copying text & graphics</label>
+          </div>
+          <div>
+            <input type="checkbox" id="protect-opt-annot">
+            <label for="protect-opt-annot" style="font-weight:600;margin-left:0.4rem;color:var(--text-dark);">Prevent adding annotations & comments</label>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary btn-large" id="btn-submit-protect" style="width:100%;justify-content:center;margin-top:0.25rem;">
+          <i class="fa-solid fa-lock"></i> Protect PDF
+        </button>
+      </div>
+    </div>
+  `;
+
+  const dropzone      = container.querySelector('#protect-dropzone');
+  const fileInput     = container.querySelector('#protect-file-input');
+  const fileNameEl    = container.querySelector('#protect-file-name');
+  const fileMetaEl    = container.querySelector('#protect-file-meta');
+  const passwordInp   = container.querySelector('#protect-password');
+  const confirmInp    = container.querySelector('#protect-confirm-password');
+  const strengthFill  = container.querySelector('#protect-strength-fill');
+  const strengthText  = container.querySelector('#protect-strength-text');
+  const submitBtn     = container.querySelector('#btn-submit-protect');
+
+  const onPdfSelected = async (file) => {
+    if (!file) return;
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (ext !== '.pdf') {
+      ToastManager.show('Please select a PDF file.', 'warning');
+      return;
+    }
+    selectedPdfFile = file;
+    fileNameEl.textContent = file.name;
+    fileMetaEl.textContent = `${formatBytes(file.size)} • Reading page count...`;
+
+    try {
+      const ab = await readFileAsArrayBuffer(file);
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
+      fileMetaEl.textContent = `${formatBytes(file.size)} • ${pdf.numPages} Page(s)`;
+    } catch (_) {
+      fileMetaEl.textContent = `${formatBytes(file.size)} • PDF Document`;
+    }
+  };
+
+  UniversalFileUploader.attachDropzone(dropzone, fileInput, onPdfSelected, false, 'security', tool.id);
+
+  // Password strength calculation
+  passwordInp.oninput = () => {
+    const val = passwordInp.value;
+    if (!val) {
+      strengthFill.style.width = '0%';
+      strengthFill.style.background = 'var(--danger)';
+      strengthText.textContent = 'None';
+      strengthText.style.color = 'var(--text-muted)';
+      return;
+    }
+    let score = 0;
+    if (val.length >= 6) score++;
+    if (val.length >= 10) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    if (score <= 2) {
+      strengthFill.style.width = '33%';
+      strengthFill.style.background = '#ef4444';
+      strengthText.textContent = 'Weak';
+      strengthText.style.color = '#ef4444';
+    } else if (score <= 3) {
+      strengthFill.style.width = '66%';
+      strengthFill.style.background = '#f59e0b';
+      strengthText.textContent = 'Medium';
+      strengthText.style.color = '#f59e0b';
+    } else {
+      strengthFill.style.width = '100%';
+      strengthFill.style.background = '#10b981';
+      strengthText.textContent = 'Strong';
+      strengthText.style.color = '#10b981';
+    }
+  };
+
+  // Submit Handler
+  submitBtn.onclick = async () => {
+    if (!selectedPdfFile) {
+      ToastManager.show('Please select a PDF file.', 'warning');
+      return;
+    }
+
+    const pass = passwordInp.value;
+    const confirm = confirmInp.value;
+
+    if (!pass) {
+      ToastManager.show('Please enter a password.', 'warning');
+      return;
+    }
+
+    if (pass !== confirm) {
+      ToastManager.show('Passwords do not match.', 'warning');
+      return;
+    }
+
+    ToastManager.show('Sending protection request to production backend...', 'info');
+
+    const options = {
+      password: pass,
+      confirmPassword: confirm,
+      preventEditing: container.querySelector('#protect-opt-edit').checked,
+      preventPrinting: container.querySelector('#protect-opt-print').checked,
+      preventCopying: container.querySelector('#protect-opt-copy').checked,
+      preventAnnotations: container.querySelector('#protect-opt-annot').checked
+    };
+
+    try {
+      console.log('[PDFNova LAB Protect] Endpoint:', `${CONFIG.API_BASE_URL}/api/protect-pdf`);
+      await protectPdf(selectedPdfFile, options);
+    } catch (err) {
+      console.error('[PDFNova LAB Protect] Processing error:', err);
+      let errMsg = err.message || 'PDF protection failed.';
+      if (errMsg.includes('Failed to fetch')) {
+        errMsg = 'PDFNova LAB server is unavailable. Please try again.';
+      }
+      ToastManager.show(errMsg, 'danger');
+    }
+  };
 }
 
 // ============================================================================
