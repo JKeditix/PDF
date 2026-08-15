@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDFNova — Free PDF Editor & Document Tools</title>
-  <meta name="description" content="PDFNova is a free, browser-based PDF and document platform. Edit PDFs, convert, merge, compress, split, watermark, and process images — no upload, no account required.">
-  <meta property="og:title" content="PDFNova — Free PDF Editor & Document Tools">
-  <meta property="og:description" content="Free PDF & Word editing, merging, compressing, splitting, image conversion and 20+ tools — entirely in your browser.">
+  <title>PDFNova — 3D Document Laboratory & Free PDF Editor</title>
+  <meta name="description" content="PDFNova is a browser-based 3D document laboratory. Edit PDFs, convert documents, merge, compress, split, protect, and process images — securely and privately in your browser.">
+  <meta property="og:title" content="PDFNova — 3D Document Laboratory & Free PDF Editor">
+  <meta property="og:description" content="Free PDF & Word editing, merging, compressing, splitting, image conversion, QR code generator and 30+ document tools.">
   <meta property="og:type" content="website">
   
   <!-- Fonts & Icons -->
@@ -23,6 +23,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -30,7 +31,7 @@
   <header id="site-header">
     <div class="header-container">
       <a href="#" class="logo" id="logo-home-btn">
-        <div class="logo-mark"><i class="fa-solid fa-file-pdf"></i></div>
+        <div class="logo-mark"><i class="fa-solid fa-cube"></i></div>
         <div class="logo-text">PDF<span>Nova</span></div>
       </a>
 
@@ -42,10 +43,9 @@
         <li><a href="#faq-section" class="nav-link" id="nav-link-faq">FAQ</a></li>
       </ul>
 
-      <!-- Header Controls & Health Badge -->
+      <!-- Header Controls & Backend Status -->
       <div class="header-actions">
-        <!-- Live System Backend Health Status Pill -->
-        <div class="status-badge offline" id="sys-status-badge" title="Click to Retry Backend Connection">
+        <div class="status-badge offline" id="sys-status-badge" title="Click to Check Backend Connection">
           <i class="fa-solid fa-circle" id="sys-status-dot"></i> <span id="sys-status-text">Backend Offline</span>
         </div>
 
@@ -69,12 +69,12 @@
     </div>
   </header>
 
-  <!-- Command Palette Modal (`Ctrl+K`) (Hidden by default in style.css) -->
+  <!-- Command Palette Overlay (`Ctrl+K`) -->
   <div class="cmd-palette-overlay" id="cmd-palette">
     <div class="cmd-palette-modal">
       <div class="cmd-search-bar">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="cmd-input" class="cmd-input" placeholder="Type a tool name (e.g. PDF Editor, Split, Photo Enhancer)..." autocomplete="off">
+        <i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i>
+        <input type="text" id="cmd-input" class="cmd-input" placeholder="Type a tool name (e.g. Compress, Merge, Protect PDF, QR, Word)..." autocomplete="off">
       </div>
       <div class="cmd-results-list" id="cmd-results"></div>
       <div class="cmd-footer">
@@ -86,172 +86,203 @@
   </div>
 
   <main>
-    <!-- DASHBOARD & LANDING VIEW -->
+    <!-- MAIN DASHBOARD VIEW -->
     <div id="dashboard-view">
       
-      <!-- Hero Section & Interactive Mini-Demo -->
-      <section class="hero-section">
+      <!-- 3D HERO DOCUMENT LABORATORY SECTION -->
+      <section class="hero-section" id="hero-3d-section">
         <div class="hero-aura"></div>
+        
         <div class="hero-content">
-          <h1 class="hero-headline">Everything You Need to Edit & Convert PDFs</h1>
-          <p class="hero-subtext">Professional PDF & Word editor, plus 20 free converter utilities — quickly and privately in your browser.</p>
-          
+          <div class="hero-badge-pill">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 3D Document Laboratory & Platform
+          </div>
+
+          <h1 class="hero-headline">
+            Future of <span>Document Processing</span>
+          </h1>
+
+          <p class="hero-subtext">
+            Professional PDF & Word editor, plus <strong id="hero-tool-count" style="color:var(--text-dark);">30+</strong> browser conversion utilities — ultra-fast, private, and powerful.
+          </p>
+
           <div class="hero-ctas">
-            <button class="btn btn-primary btn-large" id="hero-btn-editor"><i class="fa-solid fa-pen-to-square"></i> Open Document Editor</button>
-            <button class="btn btn-secondary" id="hero-btn-tools"><i class="fa-solid fa-layer-group"></i> Free Tools</button>
+            <button class="btn btn-primary btn-large" id="hero-btn-editor">
+              <i class="fa-solid fa-pen-to-square"></i> Open Document Editor
+            </button>
+            <button class="btn btn-secondary btn-large" id="hero-btn-tools">
+              <i class="fa-solid fa-layer-group"></i> Explore Tools
+            </button>
           </div>
 
           <div class="trust-list">
-            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Free to use</span>
-            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> PDF & Word editing</span>
-            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> 20+ converter tools</span>
-            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Browser-based — no uploads</span>
+            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Free & Unlimited</span>
+            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Real PDF Encryption</span>
+            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Real Document Conversions</span>
+            <span class="trust-item"><i class="fa-solid fa-circle-check"></i> Browser Privacy</span>
           </div>
         </div>
 
-        <!-- Interactive Hero Mini Converter Demo -->
-        <div class="hero-demo-card">
-          <div class="demo-header">
-            <span class="demo-title"><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Quick PDF to Image</span>
-            <span class="demo-badge">Interactive Demo</span>
-          </div>
+        <!-- 3D Document Cube Interactive Stage -->
+        <div class="hero-3d-lab-stage" id="hero-3d-stage">
+          <div class="hologram-ring"></div>
+          
+          <!-- Orbiting Format Badges -->
+          <div class="orbit-badge orbit-pdf"><i class="fa-solid fa-file-pdf"></i> PDF</div>
+          <div class="orbit-badge orbit-docx"><i class="fa-solid fa-file-word"></i> DOCX</div>
+          <div class="orbit-badge orbit-xlsx"><i class="fa-solid fa-file-excel"></i> XLSX</div>
+          <div class="orbit-badge orbit-png"><i class="fa-solid fa-file-image"></i> PNG</div>
 
-          <div class="demo-drop-area" id="hero-demo-dropzone">
-            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
-            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-dark);">Drop document here</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">or click to convert PDF immediately</div>
-            <input type="file" class="file-input" id="hero-demo-file" accept=".pdf">
-          </div>
-
-          <div class="demo-file-info" id="hero-demo-file-info" style="display:none;">
-            <i class="fa-solid fa-file-pdf" style="font-size:1.5rem; color:var(--primary);"></i>
-            <div style="flex:1;">
-              <div style="font-weight:700; font-size:0.85rem; color:var(--text-dark);" id="hero-demo-name">document.pdf</div>
-              <div style="font-size:0.75rem; color:var(--text-muted);" id="hero-demo-size">2.4 MB</div>
+          <!-- 3D Layered Document Cube Stack -->
+          <div class="cube-wrapper" id="hero-cube">
+            <div class="lab-doc-layer doc-layer-back"></div>
+            <div class="lab-doc-layer doc-layer-mid"></div>
+            <div class="lab-doc-layer doc-layer-front">
+              <div class="lab-icon-box"><i class="fa-solid fa-bolt"></i></div>
+              <div style="font-size:0.75rem; font-weight:800; color:var(--primary); text-transform:uppercase;">PDFNova Lab</div>
+              <div style="font-size:0.95rem; font-weight:800; color:var(--text-dark);">Document Processing Engine</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Drop files anywhere to begin</div>
             </div>
-            <button class="btn btn-primary" id="hero-demo-start-btn" style="padding:0.5rem 1rem; font-size:0.8rem;">Convert Now</button>
           </div>
         </div>
       </section>
 
-      <!-- SECTION 1: DOCUMENT EDITOR DASHBOARD CARDS -->
+      <!-- QUICK ACTIONS BAR -->
+      <section class="quick-actions-bar">
+        <div class="quick-actions-title"><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Quick Actions</div>
+        <div class="quick-btn-grid">
+          <button class="quick-btn" data-tool="compress-pdf"><i class="fa-solid fa-file-zipper"></i> Compress PDF</button>
+          <button class="quick-btn" data-tool="merge-pdf"><i class="fa-solid fa-object-group"></i> Merge PDF</button>
+          <button class="quick-btn" data-tool="split-pdf"><i class="fa-solid fa-scissors"></i> Split PDF</button>
+          <button class="quick-btn" data-tool="pdf-to-img"><i class="fa-solid fa-file-image"></i> PDF → JPG</button>
+          <button class="quick-btn" data-tool="img-to-pdf"><i class="fa-solid fa-images"></i> JPG → PDF</button>
+          <button class="quick-btn" data-tool="pdf-to-word"><i class="fa-solid fa-file-word"></i> PDF → Word</button>
+          <button class="quick-btn" data-tool="protect-pdf"><i class="fa-solid fa-lock"></i> Protect PDF</button>
+          <button class="quick-btn" data-tool="qr-generator"><i class="fa-solid fa-qrcode"></i> QR Generator</button>
+        </div>
+      </section>
+
+      <!-- SECTION 1: DOCUMENT EDITORS -->
       <section id="doc-editor-section" style="padding-top: 1rem;">
         <div class="section-header" style="margin-bottom: 1.5rem;">
-          <h2 class="section-title">Document Editor Suite</h2>
-          <p class="section-desc">Office-style document editing directly in your browser — completely free.</p>
+          <h2 class="section-title">Document Editors</h2>
+          <p class="section-desc">Office-style PDF and Word editing in your browser — completely free.</p>
         </div>
 
-        <div class="doc-editor-banner-grid">
-          <!-- PDF Editor Featured Card -->
-          <div class="doc-editor-card" id="btn-open-pdf-editor">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="tools-grid" style="grid-template-columns: 1fr 1fr;">
+          <!-- PDF Editor Card -->
+          <div class="tool-card" id="btn-open-pdf-editor" data-id="pdf-editor">
+            <div class="card-top">
               <div class="card-icon" style="background:var(--primary-light); color:var(--primary);"><i class="fa-solid fa-pen-to-square"></i></div>
               <span class="format-badge">PDF EDITOR</span>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-dark);">PDF Editor</h3>
-            <p style="font-size: 0.88rem; color: var(--text-muted);">Edit, annotate, draw signatures, highlight text, insert shapes, and customize PDF pages.</p>
-            <button class="btn btn-primary" style="margin-top:auto;"><i class="fa-solid fa-pen"></i> Open PDF Editor</button>
+            <div class="card-title">PDF Editor</div>
+            <div class="card-desc">Edit, annotate, draw signatures, highlight text, insert shapes, and export custom PDF pages.</div>
+            <div class="card-bottom">
+              <span class="format-badge">PDF</span>
+              <span class="card-action-text">Open Editor <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
           </div>
 
-          <!-- Word DOCX Editor Featured Card -->
-          <div class="doc-editor-card word-card" id="btn-open-word-editor">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+          <!-- Word DOCX Editor Card -->
+          <div class="tool-card" id="btn-open-word-editor" data-id="word-editor">
+            <div class="card-top">
               <div class="card-icon" style="background:var(--secondary-light); color:var(--secondary);"><i class="fa-solid fa-file-word"></i></div>
               <span class="format-badge">WORD DOCX</span>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-dark);">Word Editor</h3>
-            <p style="font-size: 0.88rem; color: var(--text-muted);">Create and edit Word (DOCX) documents with font formatting, lists, tables, and PDF export.</p>
-            <button class="btn btn-primary" style="margin-top:auto; background:var(--secondary); border-color:var(--secondary);"><i class="fa-solid fa-file-word"></i> Open Word Editor</button>
+            <div class="card-title">Word (DOCX) Editor</div>
+            <div class="card-desc">Create and edit Word documents with rich text formatting, lists, alignment controls, and PDF export.</div>
+            <div class="card-bottom">
+              <span class="format-badge">DOCX</span>
+              <span class="card-action-text">Open Editor <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- SECTION 2: FREE CONVERTER UTILITIES DASHBOARD -->
+      <!-- SECTION 2: ALL TOOLS DASHBOARD -->
       <section id="dashboard-section" class="dashboard-controls">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom: 1.5rem;">
           <div>
-            <h2 class="section-title">Free Converter Utilities</h2>
-            <p class="section-desc">100% Free & Unrestricted conversions. No signup required.</p>
+            <h2 class="section-title">All Document & Image Tools</h2>
+            <p class="section-desc"><span id="dash-tool-count">30+</span> browser utilities for editing, converting, organizing, and protecting files.</p>
           </div>
 
           <nav class="category-bar">
-            <button class="cat-btn active" data-category="all"><i class="fa-solid fa-layer-group"></i> All Tools</button>
+            <button class="cat-btn active" data-category="all"><i class="fa-solid fa-layer-group"></i> All</button>
             <button class="cat-btn" data-category="popular"><i class="fa-solid fa-fire"></i> Popular</button>
-            <button class="cat-btn" data-category="pdf"><i class="fa-solid fa-file-pdf"></i> PDF Tools</button>
-            <button class="cat-btn" data-category="document"><i class="fa-solid fa-file-word"></i> Document Tools</button>
-            <button class="cat-btn" data-category="image"><i class="fa-solid fa-image"></i> Image Tools</button>
-            <button class="cat-btn" data-category="advanced"><i class="fa-solid fa-gears"></i> Advanced Tools</button>
+            <button class="cat-btn" data-category="pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+            <button class="cat-btn" data-category="convert"><i class="fa-solid fa-arrow-right-arrow-left"></i> Convert</button>
+            <button class="cat-btn" data-category="edit"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+            <button class="cat-btn" data-category="organize"><i class="fa-solid fa-arrows-reorder"></i> Organize</button>
+            <button class="cat-btn" data-category="optimize"><i class="fa-solid fa-file-contract"></i> Optimize</button>
+            <button class="cat-btn" data-category="security"><i class="fa-solid fa-shield-halved"></i> Security</button>
+            <button class="cat-btn" data-category="document"><i class="fa-solid fa-file-word"></i> Document</button>
+            <button class="cat-btn" data-category="image"><i class="fa-solid fa-image"></i> Image</button>
+            <button class="cat-btn" data-category="advanced"><i class="fa-solid fa-gears"></i> Smart/AI</button>
+            <button class="cat-btn" data-category="qr"><i class="fa-solid fa-qrcode"></i> QR/Sharing</button>
             <button class="cat-btn" data-category="favorites"><i class="fa-solid fa-star"></i> Favorites</button>
           </nav>
-        </div>
-
-        <div class="featured-tool-card" id="featured-card" data-id="pdf-to-img">
-          <div>
-            <div class="featured-badge"><i class="fa-solid fa-star"></i> Featured Tool</div>
-            <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-dark); margin-bottom: 0.25rem;">PDF to Image Converter</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 540px;">Render every page of your PDF into crisp, high-resolution PNG or JPG images instantly.</p>
-          </div>
-          <button class="btn btn-primary" style="white-space:nowrap;">Start Converting <i class="fa-solid fa-arrow-right"></i></button>
         </div>
 
         <div class="tools-grid" id="tools-grid"></div>
       </section>
 
-      <!-- Section: Why Choose PDFNova? -->
-      <section id="features-section" style="padding-top: 2rem;">
+      <!-- SECTION 3: FEATURES -->
+      <section id="features-section" style="padding-top: 1rem;">
         <div class="section-header">
           <h2 class="section-title">Why Choose PDFNova?</h2>
-          <p class="section-desc">Designed with user privacy and speed as top priorities.</p>
+          <p class="section-desc">Designed with user privacy, speed, and real output accuracy as top priorities.</p>
         </div>
 
-        <div class="benefits-grid">
-          <div class="benefit-card">
-            <div class="benefit-icon"><i class="fa-solid fa-bolt"></i></div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark);">Lightning Fast</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Processing happens directly in your browser. No queue lines or network delays.</p>
+        <div class="tools-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+          <div class="tool-card" style="cursor:default;">
+            <div class="card-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div class="card-title">Lightning Fast</div>
+            <div class="card-desc">Processing happens directly in your browser using modern WebAssembly and HTML5 canvas engines.</div>
           </div>
 
-          <div class="benefit-card">
-            <div class="benefit-icon"><i class="fa-solid fa-user-shield"></i></div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark);">100% Private</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Your documents and photos never leave your device. No server uploads or data retention.</p>
+          <div class="tool-card" style="cursor:default;">
+            <div class="card-icon"><i class="fa-solid fa-user-shield"></i></div>
+            <div class="card-title">Browser Privacy</div>
+            <div class="card-desc">Browser processing for supported tools, with secure server processing where required.</div>
           </div>
 
-          <div class="benefit-card">
-            <div class="benefit-icon"><i class="fa-solid fa-sliders"></i></div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark);">Simple & Intuitive</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Clean drag & drop workspace with zero complex configuration required.</p>
+          <div class="tool-card" style="cursor:default;">
+            <div class="card-icon"><i class="fa-solid fa-sliders"></i></div>
+            <div class="card-title">Tool-Specific Options</div>
+            <div class="card-desc">Custom options for every tool (quality, DPI, scale, page ranges, formats, rotation, password protection).</div>
           </div>
 
-          <div class="benefit-card">
-            <div class="benefit-icon"><i class="fa-solid fa-mobile-screen"></i></div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark);">Cross Platform</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Seamlessly responsive across desktop computers, tablets, and smartphones.</p>
+          <div class="tool-card" style="cursor:default;">
+            <div class="card-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+            <div class="card-title">Fully Responsive</div>
+            <div class="card-desc">Seamless 3D visual experience across desktop computers, laptops, tablets, and smartphones.</div>
           </div>
         </div>
       </section>
 
-      <!-- Section: Expandable FAQ Accordion -->
-      <section id="faq-section" style="padding-top: 2rem;">
+      <!-- SECTION 4: FAQ -->
+      <section id="faq-section" style="padding-top: 1rem;">
         <div class="section-header">
           <h2 class="section-title">Frequently Asked Questions</h2>
-          <p class="section-desc">Everything you need to know about PDFNova and the Document Editor.</p>
+          <p class="section-desc">Everything you need to know about PDFNova tools and security.</p>
         </div>
 
         <div class="faq-list">
           <div class="faq-item">
             <div class="faq-question">Are all tools really free? <i class="fa-solid fa-chevron-down faq-icon"></i></div>
-            <div class="faq-answer">Yes! All tools on PDFNova are completely free — PDF to Image, Merge PDF, Compress PDF, PDF Editor, Word Editor, Photo Enhancer, and all other tools. No payment required.</div>
+            <div class="faq-answer">Yes! All tools on PDFNova — PDF Editor, Word Editor, Protect PDF, Merge, Compress, Split, QR Code Generator, and image tools — are completely free to use.</div>
           </div>
 
           <div class="faq-item">
-            <div class="faq-question">Is the Document Editor free? <i class="fa-solid fa-chevron-down faq-icon"></i></div>
-            <div class="faq-answer">Yes. Both the PDF Editor and Word Editor are fully free. You can open, edit, and export as many documents as you like with no limits.</div>
+            <div class="faq-question">How does Protect PDF encryption work? <i class="fa-solid fa-chevron-down faq-icon"></i></div>
+            <div class="faq-answer">Protect PDF applies real PDF encryption via our secure backend. Passwords are never logged or stored in URLs.</div>
           </div>
 
           <div class="faq-item">
-            <div class="faq-question">Are my documents safe? <i class="fa-solid fa-chevron-down faq-icon"></i></div>
-            <div class="faq-answer">All processing happens in your browser. Your files never leave your device and are never uploaded to any server.</div>
+            <div class="faq-question">How does QR Code Generator work? <i class="fa-solid fa-chevron-down faq-icon"></i></div>
+            <div class="faq-answer">You can generate scannable QR codes for website URLs, plain text, email messages, phone numbers, Wi-Fi credentials, and contact cards with custom colors and downloadable PNG images.</div>
           </div>
         </div>
       </section>
@@ -265,7 +296,7 @@
         </button>
 
         <div style="font-size:0.85rem; color:var(--text-muted);">
-          <span id="ws-category">PDF Tools</span> / <span id="ws-title-crumb" style="font-weight:700; color:var(--text-dark);">Split PDF</span>
+          <span id="ws-category">PDF</span> / <span id="ws-title-crumb" style="font-weight:700; color:var(--text-dark);">Compress PDF</span>
         </div>
 
         <button class="icon-btn" id="workspace-fav-btn">
@@ -284,7 +315,7 @@
     </div>
   </main>
 
-  <!-- User Auth Modal (Login / Registration) -->
+  <!-- User Auth Modal -->
   <div class="modal-overlay" id="auth-modal">
     <div class="modal-card" style="max-width: 420px;">
       <div class="modal-header">
@@ -332,7 +363,6 @@
         <button class="close-modal-btn" id="btn-close-account">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
-        
         <div class="account-detail-card">
           <div class="account-row"><span style="color:var(--text-muted);">Name:</span><strong id="acc-name" style="color:var(--text-dark);">User Name</strong></div>
           <div class="account-row"><span style="color:var(--text-muted);">Email:</span><strong id="acc-email" style="color:var(--text-dark);">user@example.com</strong></div>
@@ -340,7 +370,7 @@
 
         <div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem;">
           <div style="font-size:0.9rem; font-weight:700; color:var(--text-dark); margin-bottom:0.5rem;">Account Status</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">All PDF and document editor tools are free. No credits or payment needed.</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">All PDF and document tools are free and unrestricted. No credits needed.</div>
         </div>
 
         <button class="btn btn-secondary" id="btn-logout-account" style="width:100%; color:var(--danger); border-color:rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
@@ -371,10 +401,10 @@
     <div class="footer-container">
       <div class="footer-brand">
         <a href="#" class="logo">
-          <div class="logo-mark"><i class="fa-solid fa-file-pdf"></i></div>
+          <div class="logo-mark"><i class="fa-solid fa-cube"></i></div>
           <div class="logo-text">PDF<span>Nova</span></div>
         </a>
-        <p class="footer-desc">Free PDF & Word Document Editor with 20 free converter tools — all in your browser.</p>
+        <p class="footer-desc">3D Document Laboratory & Free PDF Editor platform.</p>
       </div>
 
       <div>
@@ -386,28 +416,29 @@
       </div>
 
       <div>
-        <div class="footer-title">Free Converters</div>
+        <div class="footer-title">Popular Tools</div>
         <ul class="footer-links">
           <li><a href="#dashboard-section">PDF to Image</a></li>
           <li><a href="#dashboard-section">Merge PDF</a></li>
           <li><a href="#dashboard-section">Compress PDF</a></li>
-          <li><a href="#dashboard-section">Photo Enhancer</a></li>
+          <li><a href="#dashboard-section">Protect PDF</a></li>
+          <li><a href="#dashboard-section">QR Code Generator</a></li>
         </ul>
       </div>
 
       <div>
         <div class="footer-title">Privacy & Security</div>
-        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">All file processing happens in your browser. Your documents are never uploaded to any server.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">Browser processing for supported tools, with secure server processing where required.</p>
       </div>
     </div>
 
     <div class="footer-bottom">
       <span>&copy; 2026 PDFNova. All rights reserved.</span>
-      <span>100% Client-Side Processing</span>
+      <span>Browser & Secure Server Engine</span>
     </div>
   </footer>
 
-  <!-- Runtime Config (sets API_BASE_URL — edit config.js to configure production) -->
+  <!-- Runtime Config -->
   <script src="config.js"></script>
   <!-- App Script -->
   <script src="app.js"></script>

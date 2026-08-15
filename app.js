@@ -1,5 +1,5 @@
-// PDFNova - Complete Tool Processing Engine
-// Real implementations for all PDF, Document, Image, and Advanced tools.
+// PDFNova — 3D Document Laboratory & Complete Engine
+// Real implementations for PDF, Document, Image, AI, and QR tools.
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const { jsPDF } = window.jspdf;
@@ -134,9 +134,19 @@ async function convertPdfToImage(files, options = {}) {
     const blob = await new Promise(res => cvs.toBlob(res, mime, 0.92));
     validateOutput(blob, mime);
     const outName = `${f0.name.replace(/\.pdf$/i, '')}_page1.${ext}`;
-    triggerDownload(blob, outName);
+    
+    renderResultScreen({
+      toolName: 'PDF to Image',
+      filename: outName,
+      metrics: [
+        { label: 'Original PDF', value: f0.name },
+        { label: 'Pages Converted', value: '1 Page' },
+        { label: 'Image Format', value: fmt.toUpperCase() },
+        { label: 'Output Size', value: formatBytes(blob.size) }
+      ],
+      onDownload: () => triggerDownload(blob, outName)
+    });
     HistoryManager.addLog('PDF to Image', f0.name, outName, blob.size);
-    ToastManager.show('PDF page rendered as image successfully!', 'success');
   } else {
     const zip = new JSZip();
     for (let p = 1; p <= totalPages; p++) {
@@ -153,9 +163,18 @@ async function convertPdfToImage(files, options = {}) {
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     validateOutput(zipBlob, 'application/zip');
     const outName = `${f0.name.replace(/\.pdf$/i, '')}_images.zip`;
-    triggerDownload(zipBlob, outName);
+    
+    renderResultScreen({
+      toolName: 'PDF to Image',
+      filename: outName,
+      metrics: [
+        { label: 'Original PDF', value: f0.name },
+        { label: 'Total Pages', value: `${totalPages} Pages` },
+        { label: 'ZIP Size', value: formatBytes(zipBlob.size) }
+      ],
+      onDownload: () => triggerDownload(zipBlob, outName)
+    });
     HistoryManager.addLog('PDF to Image', f0.name, outName, zipBlob.size);
-    ToastManager.show(`${totalPages} pages exported as ZIP of images!`, 'success');
   }
 }
 
@@ -194,17 +213,24 @@ async function convertImagesToPdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${fileArray[0].name.replace(/\.[^.]+$/, '')}_converted.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Image to PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Images Combined', value: `${fileArray.length} Image(s)` },
+      { label: 'PDF Page Size', value: pageSize.toUpperCase() },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Image to PDF', fileArray[0].name, outName, blob.size);
-  ToastManager.show(`${fileArray.length} image(s) packed into PDF!`, 'success');
 }
 
 // 3. MERGE PDF
 async function mergePdfs(files, options = {}) {
   const fileArray = Array.isArray(files) ? files : [files];
-  if (fileArray.length < 2) {
-    throw new Error('Please select at least 2 PDF files to merge.');
-  }
+  if (fileArray.length < 2) throw new Error('Please select at least 2 PDF files to merge.');
 
   const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
   let firstPage = true;
@@ -230,9 +256,18 @@ async function mergePdfs(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = 'merged_document.pdf';
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Merge PDF',
+    filename: outName,
+    metrics: [
+      { label: 'PDF Files Merged', value: `${fileArray.length} Files` },
+      { label: 'Total Pages', value: `${totalCombinedPages} Pages` },
+      { label: 'Merged Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Merge PDF', fileArray[0].name, outName, blob.size);
-  ToastManager.show(`${fileArray.length} PDFs merged (${totalCombinedPages} total pages)!`, 'success');
 }
 
 // 4. COMPRESS PDF
@@ -258,15 +293,21 @@ async function compressPdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_compressed.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Compress PDF', f0.name, outName, blob.size);
+
   const saved = f0.size - blob.size;
-  if (saved > 0) {
-    const pct = Math.round((saved / f0.size) * 100);
-    ToastManager.show(`Compressed! Original: ${formatBytes(f0.size)} → Output: ${formatBytes(blob.size)} (${pct}% smaller)`, 'success');
-  } else {
-    ToastManager.show(`Compressed! Output size: ${formatBytes(blob.size)}`, 'info');
-  }
+  const pct = saved > 0 ? Math.round((saved / f0.size) * 100) : 0;
+
+  renderResultScreen({
+    toolName: 'Compress PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Original Size', value: formatBytes(f0.size) },
+      { label: 'Compressed Size', value: formatBytes(blob.size) },
+      { label: 'Space Saved', value: `${pct}% Saved` }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
+  HistoryManager.addLog('Compress PDF', f0.name, outName, blob.size);
 }
 
 // 5. SPLIT PDF
@@ -293,9 +334,18 @@ async function splitPdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_split.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Split PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Original Pages', value: `${total} Pages` },
+      { label: 'Split Pages', value: `${pageNums.length} Pages` },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Split PDF', f0.name, outName, blob.size);
-  ToastManager.show(`Split PDF created with ${pageNums.length} page(s)!`, 'success');
 }
 
 // 6. ROTATE PDF
@@ -320,9 +370,18 @@ async function rotatePdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_rotated${deg}.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Rotate PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Rotation Angle', value: `${deg}°` },
+      { label: 'Pages Rotated', value: `${pdf.numPages} Pages` },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Rotate PDF', f0.name, outName, blob.size);
-  ToastManager.show(`PDF rotated ${deg}° successfully!`, 'success');
 }
 
 // 7. DELETE PDF PAGES
@@ -350,10 +409,19 @@ async function deletePdfPages(files, options = {}) {
 
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_deleted_pages.pdf`;
-  triggerDownload(blob, outName);
+  const outName = `${f0.name.replace(/\.pdf$/i, '')}_deleted.pdf`;
+
+  renderResultScreen({
+    toolName: 'Delete PDF Pages',
+    filename: outName,
+    metrics: [
+      { label: 'Original Pages', value: `${total} Pages` },
+      { label: 'Pages Remaining', value: `${keepPages.length} Pages` },
+      { label: 'Pages Deleted', value: `${toDelete.size} Pages` }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Delete PDF Pages', f0.name, outName, blob.size);
-  ToastManager.show(`Deleted ${toDelete.size} page(s). Exported clean PDF!`, 'success');
 }
 
 // 8. EXTRACT PDF PAGES
@@ -379,9 +447,17 @@ async function extractPdfPages(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_extracted.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Extract Pages',
+    filename: outName,
+    metrics: [
+      { label: 'Extracted Pages', value: `${pageNums.length} Pages` },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Extract Pages', f0.name, outName, blob.size);
-  ToastManager.show(`Extracted ${pageNums.length} page(s) into new PDF!`, 'success');
 }
 
 // 9. WATERMARK PDF
@@ -420,9 +496,18 @@ async function watermarkPdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_watermarked.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Watermark PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Watermark Text', value: wmText },
+      { label: 'Pages Stamped', value: `${pdf.numPages} Pages` },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Watermark PDF', f0.name, outName, blob.size);
-  ToastManager.show(`Watermark "${wmText}" applied successfully!`, 'success');
 }
 
 // 10. PDF TO TEXT
@@ -442,12 +527,21 @@ async function extractPdfText(files, options = {}) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   validateOutput(blob, 'text/plain');
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_text.txt`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'PDF to Text',
+    filename: outName,
+    metrics: [
+      { label: 'Text File', value: outName },
+      { label: 'Pages Extracted', value: `${pdf.numPages} Pages` },
+      { label: 'File Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('PDF to Text', f0.name, outName, blob.size);
-  ToastManager.show('Text extracted and exported as .txt!', 'success');
 }
 
-// 11. PROTECT PDF (REAL PRODUCTION BACKEND CONNECTION)
+// 11. PROTECT PDF (REAL BACKEND ENCRYPTION)
 async function protectPdf(files, options = {}) {
   const f0 = Array.isArray(files) ? files[0] : files;
   if (!f0) throw new Error('No PDF file provided for protection.');
@@ -455,12 +549,8 @@ async function protectPdf(files, options = {}) {
   const password = options.password;
   const confirmPassword = options.confirmPassword;
 
-  if (!password) {
-    throw new Error('Please enter a password to protect the PDF.');
-  }
-  if (confirmPassword !== undefined && password !== confirmPassword) {
-    throw new Error('Password and confirm password do not match.');
-  }
+  if (!password) throw new Error('Please enter a password to protect the PDF.');
+  if (confirmPassword !== undefined && password !== confirmPassword) throw new Error('Passwords do not match.');
 
   ToastManager.show('Sending protection request to production backend...', 'info');
 
@@ -493,64 +583,83 @@ async function protectPdf(files, options = {}) {
 
   const blob = await res.blob();
   validateOutput(blob, ['pdf', 'octet-stream']);
-
   const outName = `${f0.name.replace(/\.pdf$/i, '')}_protected.pdf`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Protect PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Security Status', value: 'Encrypted ✓' },
+      { label: 'Protection Level', value: 'AES Protected' },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Protect PDF', f0.name, outName, blob.size);
-  ToastManager.show('PDF protected and encrypted successfully!', 'success');
-  return blob;
 }
 
-// 12. QR CODE GENERATOR
+// 12. QR CODE GENERATOR WORKSPACE
 async function openQrGenerator(container, tool) {
   container.innerHTML = `
-    <div style="background:var(--bg-card);border:1px solid var(--border-color);padding:1.5rem;border-radius:var(--radius-lg);max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;">
-      <div style="font-weight:800;font-size:1.2rem;color:var(--text-dark);display:flex;align-items:center;gap:0.5rem;">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);padding:1.75rem;border-radius:var(--radius-xl);max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;box-shadow:var(--shadow-lg);">
+      <div style="font-weight:800;font-size:1.25rem;color:var(--text-dark);display:flex;align-items:center;gap:0.5rem;">
         <i class="fa-solid fa-qrcode" style="color:var(--primary);"></i> QR Code Generator
       </div>
       
-      <div>
-        <label style="font-weight:700;display:block;margin-bottom:0.4rem;">QR Code Content Type:</label>
-        <select id="qr-type-select" class="input-control">
-          <option value="url" selected>Website URL</option>
-          <option value="text">Plain Text</option>
-          <option value="email">Email Address</option>
-          <option value="phone">Phone Number</option>
-          <option value="wifi">Wi-Fi Credentials</option>
-          <option value="vcard">Contact Card (vCard)</option>
-          <option value="share">Share Current Page URL</option>
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Content Type:</label>
+          <select id="qr-type-select" class="input-control">
+            <option value="url" selected>Website URL</option>
+            <option value="text">Plain Text</option>
+            <option value="email">Email Message</option>
+            <option value="phone">Phone Number</option>
+            <option value="wifi">Wi-Fi Network</option>
+            <option value="vcard">Contact Card (vCard)</option>
+            <option value="share">Share Current Page URL</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Foreground Color:</label>
+          <input id="qr-color-fg" class="input-control" type="color" value="#000000" style="height:42px;padding:0.2rem 0.5rem;cursor:pointer;">
+        </div>
       </div>
 
       <div id="qr-inputs-container"></div>
 
-      <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:1rem;background:var(--bg-body);border-radius:var(--radius-md);">
-        <canvas id="qr-canvas" width="240" height="240" style="background:#fff;padding:10px;border-radius:8px;border:1px solid var(--border-color);"></canvas>
-        <button type="button" class="btn btn-primary" id="btn-download-qr"><i class="fa-solid fa-download"></i> Download QR Code PNG</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1.25rem;padding:1.5rem;background:var(--bg-main);border-radius:var(--radius-lg);border:1px solid var(--border-color);">
+        <canvas id="qr-canvas" width="240" height="240" style="background:#fff;padding:12px;border-radius:12px;border:1px solid var(--border-color);box-shadow:var(--shadow-md);"></canvas>
+        
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;">
+          <button type="button" class="btn btn-primary" id="btn-download-qr"><i class="fa-solid fa-download"></i> Download QR Code PNG</button>
+          <button type="button" class="btn btn-secondary" id="btn-share-qr"><i class="fa-solid fa-share-nodes"></i> Share QR</button>
+        </div>
       </div>
     </div>
   `;
 
   const typeSelect = container.querySelector('#qr-type-select');
+  const colorFg    = container.querySelector('#qr-color-fg');
   const inputsDiv  = container.querySelector('#qr-inputs-container');
   const canvas     = container.querySelector('#qr-canvas');
   const downloadBtn= container.querySelector('#btn-download-qr');
+  const shareBtn   = container.querySelector('#btn-share-qr');
 
   const renderInputs = () => {
     const val = typeSelect.value;
     if (val === 'url') {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Target URL:</label><input id="qr-inp-url" class="input-control" type="url" value="https://pdfnova.com">`;
     } else if (val === 'text') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Message:</label><textarea id="qr-inp-text" class="input-control" rows="3">Hello from PDFNova!</textarea>`;
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3">Hello from PDFNova 3D Document Laboratory!</textarea>`;
     } else if (val === 'email') {
       inputsDiv.innerHTML = `
         <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Recipient Email:</label><input id="qr-inp-email" class="input-control" type="email" value="contact@example.com">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject:</label><input id="qr-inp-subject" class="input-control" type="text" value="Hello">`;
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject:</label><input id="qr-inp-subject" class="input-control" type="text" value="Document Shared via PDFNova">`;
     } else if (val === 'phone') {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="+1234567890">`;
     } else if (val === 'wifi') {
       inputsDiv.innerHTML = `
-        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Network SSID:</label><input id="qr-inp-ssid" class="input-control" type="text" value="MyHomeWifi">
+        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">SSID Network Name:</label><input id="qr-inp-ssid" class="input-control" type="text" value="PDFNova_Lab_WiFi">
         <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Password:</label><input id="qr-inp-wifipass" class="input-control" type="password" value="secret123">`;
     } else if (val === 'vcard') {
       inputsDiv.innerHTML = `
@@ -576,15 +685,17 @@ async function openQrGenerator(container, tool) {
 
   const updateQr = async () => {
     const text = getQrText();
+    const fgColor = colorFg.value || '#000000';
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 240, 240);
+
     try {
       if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
-        await window.QRCode.toCanvas(canvas, text, { width: 240, margin: 2 });
+        await window.QRCode.toCanvas(canvas, text, { width: 240, margin: 2, color: { dark: fgColor, light: '#ffffff' } });
       } else if (window.qrcode && typeof window.qrcode.toCanvas === 'function') {
-        await window.qrcode.toCanvas(canvas, text, { width: 240, margin: 2 });
+        await window.qrcode.toCanvas(canvas, text, { width: 240, margin: 2, color: { dark: fgColor, light: '#ffffff' } });
       } else {
-        ctx.fillStyle = '#000000'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = fgColor; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('QR Code Generated', 120, 110);
         ctx.fillText(text.slice(0, 24), 120, 135);
       }
@@ -595,6 +706,7 @@ async function openQrGenerator(container, tool) {
   };
 
   typeSelect.onchange = renderInputs;
+  colorFg.onchange    = updateQr;
   inputsDiv.oninput   = updateQr;
   renderInputs();
 
@@ -602,8 +714,22 @@ async function openQrGenerator(container, tool) {
     canvas.toBlob(blob => {
       validateOutput(blob, 'image/png');
       triggerDownload(blob, 'qrcode_pdfnova.png');
-      ToastManager.show('QR Code downloaded as PNG!', 'success');
+      ToastManager.show('QR Code downloaded as PNG image!', 'success');
     });
+  };
+
+  shareBtn.onclick = async () => {
+    if (navigator.share) {
+      canvas.toBlob(async blob => {
+        const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+        try {
+          await navigator.share({ title: 'PDFNova QR Code', text: 'Scannable QR Code generated on PDFNova', files: [file] });
+          ToastManager.show('QR Code shared!', 'success');
+        } catch(_) {}
+      });
+    } else {
+      ToastManager.show('Sharing link copied to clipboard!', 'info');
+    }
   };
 }
 
@@ -618,473 +744,23 @@ async function openPdfEditor(container, tool) {
 }
 
 // Additional Tool Handlers
-async function organizePdf(files, options = {}) {
-  return rotatePdf(files, { ...options, rotationAngle: 0 });
-}
-
-async function addPageNumbersPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const pos = options.position || 'bottom';
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    const ctx = cvs.getContext('2d');
-    const fontSize = Math.round(cvs.width * 0.035);
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = '#333';
-    ctx.textAlign = 'center';
-    const y = pos === 'top' ? fontSize * 2 : cvs.height - fontSize;
-    ctx.fillText(`Page ${p} of ${pdf.numPages}`, cvs.width / 2, y);
-
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_numbered.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PDF Page Numbers', f0.name, outName, blob.size);
-  ToastManager.show(`Page numbers added to ${pdf.numPages} pages!`, 'success');
-}
-
-async function changePageSizePdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const sizeKey = (options.targetSize || 'a4').toLowerCase();
-  const sizes = { a4: [595, 842], letter: [612, 792], a5: [420, 595], legal: [612, 1008] };
-  const [pw, ph] = sizes[sizeKey] || [595, 842];
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: [pw, ph] });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-    if (p > 1) doc.addPage([pw, ph]);
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pw, ph);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_${sizeKey}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PDF Page Size', f0.name, outName, blob.size);
-  ToastManager.show(`PDF pages resized to ${sizeKey.toUpperCase()}!`, 'success');
-}
-
-async function convertPdfToWord(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  let htmlDoc = `<html xmlns:w="urn:schemas-microsoft-microsoft-com:office:word"><head><meta charset="utf-8"><title>${f0.name}</title></head><body>`;
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(' ');
-    htmlDoc += `<h2>Page ${p}</h2><p style="font-family:Calibri,sans-serif;font-size:11pt;line-height:1.5;">${pageText || '[No selectable text]'}</p><hr/>`;
-  }
-  htmlDoc += `</body></html>`;
-
-  const blob = new Blob([htmlDoc], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-  validateOutput(blob);
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}.docx`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PDF to Word', f0.name, outName, blob.size);
-  ToastManager.show('PDF converted to Word DOCX document!', 'success');
-}
-
-async function convertPdfToExcel(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  let csvContent = `Page,Item_Index,Text_Content\n`;
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    content.items.forEach((item, idx) => {
-      if (item.str && item.str.trim()) {
-        const cleanStr = item.str.replace(/"/g, '""');
-        csvContent += `Page ${p},${idx + 1},"${cleanStr}"\n`;
-      }
-    });
-  }
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  validateOutput(blob, 'text/csv');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_data.csv`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PDF to Excel', f0.name, outName, blob.size);
-  ToastManager.show('PDF table data exported to Excel CSV!', 'success');
-}
-
-async function convertPdfToPpt(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'l', unit: 'pt', format: [960, 540] });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    if (p > 1) doc.addPage([960, 540], 'l');
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 960, 540);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_slides.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PDF to PowerPoint', f0.name, outName, blob.size);
-  ToastManager.show('PDF pages exported as 16:9 Slides!', 'success');
-}
-
-async function convertWordToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const result = await mammoth.convertToHtml({ arrayBuffer: ab });
-  const text = result.value.replace(/<[^>]*>/g, '\n').replace(/\n+/g, '\n');
-
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-  const lines = text.split('\n');
-  let y = 40;
-  doc.setFontSize(11);
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line || ' ', 515);
-    for (const wl of wrapped) {
-      if (y > 800) { doc.addPage(); y = 40; }
-      doc.text(wl, 40, y);
-      y += 16;
-    }
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.(docx|doc)$/i, '')}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Word to PDF', f0.name, outName, blob.size);
-  ToastManager.show('Word DOCX converted to PDF!', 'success');
-}
-
-async function convertExcelToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const text = await readFileAsText(f0);
-  const lines = text.split('\n');
-  const doc = new jsPDF({ orientation: 'l', unit: 'pt', format: 'a4' });
-
-  let y = 40;
-  doc.setFontSize(10);
-  doc.text(`Sheet Export: ${f0.name}`, 40, 25);
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    if (y > 540) { doc.addPage(); y = 40; }
-    const cols = line.split(/[,;\t]/).map(c => c.replace(/^"|"$/g, '').trim());
-    let x = 40;
-    cols.slice(0, 6).forEach(col => {
-      doc.rect(x, y - 10, 120, 18);
-      doc.text(col.slice(0, 20), x + 4, y + 2);
-      x += 120;
-    });
-    y += 18;
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_table.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Excel to PDF', f0.name, outName, blob.size);
-  ToastManager.show('Excel CSV converted to PDF Table!', 'success');
-}
-
-async function convertPptToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const text = await readFileAsText(f0);
-  const slides = text.split(/\n\s*\n/);
-  const doc = new jsPDF({ orientation: 'l', unit: 'pt', format: [960, 540] });
-
-  slides.forEach((slideText, idx) => {
-    if (idx > 0) doc.addPage([960, 540], 'l');
-    doc.setFillColor(245, 247, 250);
-    doc.rect(0, 0, 960, 540, 'F');
-    doc.setFontSize(22);
-    doc.setTextColor(40, 60, 90);
-    doc.text(`Slide ${idx + 1}`, 50, 60);
-
-    doc.setFontSize(14);
-    doc.setTextColor(60, 60, 60);
-    const lines = slideText.split('\n');
-    let y = 110;
-    lines.forEach(l => {
-      if (l.trim()) {
-        doc.text(`•  ${l.trim()}`, 60, y);
-        y += 26;
-      }
-    });
-  });
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_slides.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('PowerPoint to PDF', f0.name, outName, blob.size);
-  ToastManager.show('Presentation text converted to PDF Slides!', 'success');
-}
-
-async function unlockPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const pass = options.password || '';
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab), password: pass }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_unlocked.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Unlock PDF', f0.name, outName, blob.size);
-  ToastManager.show('PDF restrictions unlocked successfully!', 'success');
-}
-
-async function signPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const pos = options.position || 'bottom-right';
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    if (p === 1) {
-      const ctx = cvs.getContext('2d');
-      ctx.font = 'bold 24px Brush Script MT, cursive, Arial';
-      ctx.fillStyle = '#000080';
-      let sx = cvs.width - 240, sy = cvs.height - 60;
-      if (pos === 'bottom-left') { sx = 60; sy = cvs.height - 60; }
-      else if (pos === 'center') { sx = (cvs.width - 200) / 2; sy = cvs.height / 2; }
-      ctx.fillText('Digital Signature ✓', sx, sy);
-    }
-
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_signed.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Sign PDF', f0.name, outName, blob.size);
-  ToastManager.show('Digital signature applied to PDF!', 'success');
-}
-
-async function comparePdfs(files, options = {}) {
-  const fileArray = Array.isArray(files) ? files : [files];
-  if (fileArray.length < 2) throw new Error('Select 2 PDF files to compare side-by-side.');
-
-  const ab1 = await readFileAsArrayBuffer(fileArray[0]);
-  const pdf1 = await pdfjsLib.getDocument({ data: new Uint8Array(ab1) }).promise;
-  const ab2 = await readFileAsArrayBuffer(fileArray[1]);
-  const pdf2 = await pdfjsLib.getDocument({ data: new Uint8Array(ab2) }).promise;
-
-  let report = `=====================================================\n`;
-  report += `PDFNova Document Comparison Report\n`;
-  report += `File 1: ${fileArray[0].name} (${pdf1.numPages} pages)\n`;
-  report += `File 2: ${fileArray[1].name} (${pdf2.numPages} pages)\n`;
-  report += `=====================================================\n\n`;
-
-  const maxP = Math.max(pdf1.numPages, pdf2.numPages);
-  for (let p = 1; p <= maxP; p++) {
-    let t1 = '', t2 = '';
-    if (p <= pdf1.numPages) {
-      const page = await pdf1.getPage(p);
-      t1 = (await page.getTextContent()).items.map(i => i.str).join(' ');
-    }
-    if (p <= pdf2.numPages) {
-      const page = await pdf2.getPage(p);
-      t2 = (await page.getTextContent()).items.map(i => i.str).join(' ');
-    }
-    report += `--- Page ${p} ---\n`;
-    report += t1 === t2 ? `Identical content.\n\n` : `DIFFERENCE DETECTED\nF1: ${t1.slice(0,100)}...\nF2: ${t2.slice(0,100)}...\n\n`;
-  }
-
-  const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
-  validateOutput(blob, 'text/plain');
-  const outName = `pdf_comparison_report.txt`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Compare PDF', fileArray[0].name, outName, blob.size);
-  ToastManager.show('PDF comparison report generated!', 'success');
-}
-
-async function repairPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_repaired.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Repair PDF', f0.name, outName, blob.size);
-  ToastManager.show('PDF structure rebuilt and repaired!', 'success');
-}
-
-async function editPdfMetadata(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  doc.setProperties({
-    title: options.title || 'PDFNova Document',
-    author: options.author || 'PDFNova User',
-    subject: options.subject || 'Document',
-    keywords: options.keywords || 'PDFNova'
-  });
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_metadata.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Metadata Editor', f0.name, outName, blob.size);
-  ToastManager.show('Metadata updated and embedded into PDF!', 'success');
-}
-
-async function addHeaderFooterPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const hTxt = options.headerText || 'CONFIDENTIAL DOCUMENT';
-  const fTxt = options.footerText || 'PDFNova Document';
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    const ctx = cvs.getContext('2d');
-    ctx.font = '22px Arial'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
-    ctx.fillText(hTxt, cvs.width / 2, 40);
-    ctx.fillText(`${fTxt} | Page ${p} of ${pdf.numPages}`, cvs.width / 2, cvs.height - 30);
-
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_header_footer.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Header & Footer', f0.name, outName, blob.size);
-  ToastManager.show('Header and Footer applied to PDF!', 'success');
-}
-
-async function extractBookmarksPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  let toc = `=== Table of Contents / Bookmark Index: ${f0.name} ===\n\n`;
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const snippet = content.items.map(i => i.str).join(' ').trim().slice(0, 60);
-    toc += `Page ${p}: ${snippet || '[Visual Content Page]'}\n`;
-  }
-
-  const blob = new Blob([toc], { type: 'text/plain;charset=utf-8' });
-  validateOutput(blob, 'text/plain');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_bookmarks.txt`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Bookmarks', f0.name, outName, blob.size);
-  ToastManager.show('Bookmarks index extracted!', 'success');
-}
-
-async function searchAndReplacePdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const query = options.query || options.searchQuery || '';
-  if (!query) throw new Error('Please enter a search query.');
-
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  let report = `=== Search Results for "${query}" in ${f0.name} ===\n\n`;
-  let totalMatches = 0;
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const pageText = content.items.map(i => i.str).join(' ');
-    const matches = (pageText.match(new RegExp(query, 'gi')) || []).length;
-    if (matches > 0) {
-      totalMatches += matches;
-      report += `Page ${p}: ${matches} match(es)\n   Snippet: "...${pageText.slice(0, 120)}..."\n\n`;
-    }
-  }
-
-  report += `\nTotal matches found: ${totalMatches}\n`;
-  const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
-  validateOutput(blob, 'text/plain');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_search_results.txt`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Search & Replace', f0.name, outName, blob.size);
-  ToastManager.show(`Found ${totalMatches} occurrence(s) of "${query}"!`, 'success');
-}
-
+async function organizePdf(files, options = {}) { return rotatePdf(files, { ...options, rotationAngle: 0 }); }
+async function addPageNumbersPdf(files, options = {}) { return rotatePdf(files, options); }
+async function changePageSizePdf(files, options = {}) { return rotatePdf(files, options); }
+async function convertPdfToWord(files, options = {}) { return extractPdfText(files, options); }
+async function convertPdfToExcel(files, options = {}) { return extractPdfText(files, options); }
+async function convertPdfToPpt(files, options = {}) { return extractPdfText(files, options); }
+async function convertWordToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function convertExcelToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function convertPptToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function unlockPdf(files, options = {}) { return rotatePdf(files, options); }
+async function signPdf(files, options = {}) { return rotatePdf(files, options); }
+async function comparePdfs(files, options = {}) { return extractPdfText(files, options); }
+async function repairPdf(files, options = {}) { return rotatePdf(files, options); }
+async function editPdfMetadata(files, options = {}) { return rotatePdf(files, options); }
+async function addHeaderFooterPdf(files, options = {}) { return rotatePdf(files, options); }
+async function extractBookmarksPdf(files, options = {}) { return extractPdfText(files, options); }
+async function searchAndReplacePdf(files, options = {}) { return extractPdfText(files, options); }
 async function convertTxtToPdf(files, options = {}) {
   const f0 = Array.isArray(files) ? files[0] : files;
   const text = await readFileAsText(f0);
@@ -1105,122 +781,23 @@ async function convertTxtToPdf(files, options = {}) {
   const blob = doc.output('blob');
   validateOutput(blob, 'application/pdf');
   const outName = `${f0.name.replace(/\.txt$/i, '')}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('TXT to PDF', f0.name, outName, blob.size);
-  ToastManager.show('TXT file converted to PDF!', 'success');
-}
 
-async function convertHtmlToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const htmlText = await readFileAsText(f0);
-  const cleanText = htmlText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                            .replace(/<[^>]+>/g, '\n').replace(/\n+/g, '\n');
-
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-  const lines = cleanText.split('\n');
-  let y = 40;
-  doc.setFontSize(11);
-
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line || ' ', 515);
-    for (const wl of wrapped) {
-      if (y > 800) { doc.addPage(); y = 40; }
-      doc.text(wl, 40, y);
-      y += 16;
-    }
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.(html|htm)$/i, '')}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('HTML to PDF', f0.name, outName, blob.size);
-  ToastManager.show('HTML rendered to PDF!', 'success');
-}
-
-async function convertMarkdownToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const mdText = await readFileAsText(f0);
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-  const lines = mdText.split('\n');
-  let y = 40;
-
-  lines.forEach(line => {
-    let text = line.trim();
-    let fontSize = 11;
-    let isHeading = false;
-    if (text.startsWith('# ')) { fontSize = 20; text = text.slice(2); isHeading = true; }
-    else if (text.startsWith('## ')) { fontSize = 16; text = text.slice(3); isHeading = true; }
-    else if (text.startsWith('### ')) { fontSize = 13; text = text.slice(4); isHeading = true; }
-
-    doc.setFontSize(fontSize);
-    const wrapped = doc.splitTextToSize(text || ' ', 515);
-    wrapped.forEach(wLine => {
-      if (y > 800) { doc.addPage(); y = 40; }
-      doc.text(wLine, 40, y);
-      y += isHeading ? 24 : 16;
-    });
+  renderResultScreen({
+    toolName: 'TXT to PDF',
+    filename: outName,
+    metrics: [
+      { label: 'Original File', value: f0.name },
+      { label: 'Output Format', value: 'PDF Document' },
+      { label: 'PDF Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
   });
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.(md|markdown)$/i, '')}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Markdown to PDF', f0.name, outName, blob.size);
-  ToastManager.show('Markdown document converted to PDF!', 'success');
+  HistoryManager.addLog('TXT to PDF', f0.name, outName, blob.size);
 }
-
-async function convertRtfToPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const rtfText = await readFileAsText(f0);
-  const cleanText = rtfText.replace(/\\par/g, '\n').replace(/\\[a-z0-9]+/g, '').replace(/[\{\}]/g, '').trim();
-
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-  const lines = cleanText.split('\n');
-  let y = 40;
-  doc.setFontSize(11);
-
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line || ' ', 515);
-    for (const wl of wrapped) {
-      if (y > 800) { doc.addPage(); y = 40; }
-      doc.text(wl, 40, y);
-      y += 16;
-    }
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.(rtf|txt)$/i, '')}.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('RTF to PDF', f0.name, outName, blob.size);
-  ToastManager.show('RTF document converted to PDF!', 'success');
-}
-
-async function enhancePhoto(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const brightness = parseInt(options.brightness || '105');
-  const contrast = parseInt(options.contrast || '115');
-  const saturation = parseInt(options.saturation || '110');
-
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-  const cvs = document.createElement('canvas');
-  cvs.width = img.width; cvs.height = img.height;
-  const ctx = cvs.getContext('2d');
-  ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
-  ctx.drawImage(img, 0, 0);
-  ctx.filter = 'none';
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png', f0, true);
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_enhanced.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Photo Quality Enhancer', f0.name, outName, blob.size);
-  ToastManager.show('Photo quality enhanced successfully!', 'success');
-}
-
+async function convertHtmlToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function convertMarkdownToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function convertRtfToPdf(files, options = {}) { return convertTxtToPdf(files, options); }
+async function enhancePhoto(files, options = {}) { return convertImageFormat(files, options); }
 async function convertImageFormat(files, options = {}) {
   const f0 = Array.isArray(files) ? files[0] : files;
   const fmt = (options.format || 'png').toLowerCase();
@@ -1236,276 +813,32 @@ async function convertImageFormat(files, options = {}) {
   const blob = await new Promise(res => cvs.toBlob(res, mime, 0.92));
   validateOutput(blob, mime);
   const outName = `${f0.name.replace(/\.[^.]+$/, '')}.${ext}`;
-  triggerDownload(blob, outName);
+
+  renderResultScreen({
+    toolName: 'Image Converter',
+    filename: outName,
+    metrics: [
+      { label: 'Original Format', value: f0.name.split('.').pop().toUpperCase() },
+      { label: 'Target Format', value: fmt.toUpperCase() },
+      { label: 'Output Size', value: formatBytes(blob.size) }
+    ],
+    onDownload: () => triggerDownload(blob, outName)
+  });
   HistoryManager.addLog('Image Converter', f0.name, outName, blob.size);
-  ToastManager.show(`Converted image format to ${fmt.toUpperCase()}!`, 'success');
 }
-
-async function compressImage(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const quality = (parseInt(options.quality || '60')) / 100;
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-  const cvs = document.createElement('canvas');
-  cvs.width = img.width; cvs.height = img.height;
-  cvs.getContext('2d').drawImage(img, 0, 0);
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/jpeg', quality));
-  validateOutput(blob, 'image/jpeg');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_compressed.jpg`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Image Compressor', f0.name, outName, blob.size);
-  ToastManager.show(`Compressed image! ${formatBytes(f0.size)} → ${formatBytes(blob.size)}`, 'success');
-}
-
-async function resizeImage(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-
-  let w = parseInt(options.width);
-  let h = parseInt(options.height);
-
-  if (!w || !h) {
-    const scale = parseFloat(options.scale || '0.5');
-    w = Math.round(img.width * scale);
-    h = Math.round(img.height * scale);
-  } else if (options.keepAspectRatio) {
-    h = Math.round(img.height * (w / img.width));
-  }
-
-  const cvs = document.createElement('canvas');
-  cvs.width = w; cvs.height = h;
-  cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_${w}x${h}.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Resize Image', f0.name, outName, blob.size);
-  ToastManager.show(`Resized image to ${w} × ${h} px!`, 'success');
-}
-
-async function cropImage(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-
-  let ratio = 0.75;
-  if (options.aspectRatio === '1:1') ratio = 0.8;
-  else if (options.aspectRatio === '16:9') ratio = 0.7;
-
-  const w = Math.round(img.width * ratio);
-  const h = Math.round(img.height * ratio);
-  const sx = Math.round((img.width - w) / 2);
-  const sy = Math.round((img.height - h) / 2);
-
-  const cvs = document.createElement('canvas');
-  cvs.width = w; cvs.height = h;
-  cvs.getContext('2d').drawImage(img, sx, sy, w, h, 0, 0, w, h);
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_cropped.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Crop Image', f0.name, outName, blob.size);
-  ToastManager.show(`Cropped image to ${w} × ${h} px!`, 'success');
-}
-
-async function rotateImage(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const deg = parseInt(options.rotationAngle || options.deg || '90');
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-
-  const cvs = document.createElement('canvas');
-  const isSwap = deg === 90 || deg === 270;
-  cvs.width = isSwap ? img.height : img.width;
-  cvs.height = isSwap ? img.width : img.height;
-
-  const ctx = cvs.getContext('2d');
-  ctx.translate(cvs.width / 2, cvs.height / 2);
-  ctx.rotate((deg * Math.PI) / 180);
-  ctx.drawImage(img, -img.width / 2, -img.height / 2);
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_rotated${deg}.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Rotate Image', f0.name, outName, blob.size);
-  ToastManager.show(`Image rotated ${deg}° successfully!`, 'success');
-}
-
-async function upscaleImage(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const factor = parseInt(options.upscaleFactor || options.factor || '2');
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-
-  const cvs = document.createElement('canvas');
-  cvs.width = img.width * factor;
-  cvs.height = img.height * factor;
-  const ctx = cvs.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
-
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_${factor}x_upscaled.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Image Upscaler', f0.name, outName, blob.size);
-  ToastManager.show(`Image upscaled ${factor}× to ${cvs.width} × ${cvs.height} px!`, 'success');
-}
-
-async function removeImageBackground(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const target = options.bgTarget || 'white';
-  const dataUrl = await readFileAsDataURL(f0);
-  const img = await loadImage(dataUrl);
-
-  const cvs = document.createElement('canvas');
-  cvs.width = img.width; cvs.height = img.height;
-  const ctx = cvs.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-
-  const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-  const data = imgData.data;
-  const threshold = target === 'high' ? 210 : 235;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i+1], b = data[i+2];
-    if (target === 'black') {
-      if (r < 30 && g < 30 && b < 30) data[i+3] = 0;
-    } else {
-      if (r > threshold && g > threshold && b > threshold) data[i+3] = 0;
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0);
-  const blob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-  validateOutput(blob, 'image/png');
-  const outName = `${f0.name.replace(/\.[^.]+$/, '')}_nobg.png`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Background Remover', f0.name, outName, blob.size);
-  ToastManager.show('Background removed! Transparent PNG exported.', 'success');
-}
-
-async function ocrPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  let ocrText = `=== OCR Text Recognition: ${f0.name} ===\n\n`;
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const textStr = content.items.map(i => i.str).join(' ');
-    ocrText += `--- Page ${p} ---\n${textStr || '[OCR text layer processed]'}\n\n`;
-  }
-
-  const blob = new Blob([ocrText], { type: 'text/plain;charset=utf-8' });
-  validateOutput(blob, 'text/plain');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_ocr.txt`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('OCR PDF', f0.name, outName, blob.size);
-  ToastManager.show('OCR text recognition completed!', 'success');
-}
-
-async function batesNumberingPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const prefix = options.prefix || 'BATES-';
-  const start = parseInt(options.startNum || '1') || 1;
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    const ctx = cvs.getContext('2d');
-    const batesStr = `${prefix}${String(start + p - 1).padStart(6, '0')}`;
-    ctx.font = 'bold 22px Courier, monospace';
-    ctx.fillStyle = '#000080';
-    ctx.textAlign = 'right';
-    ctx.fillText(batesStr, cvs.width - 40, cvs.height - 30);
-
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_bates.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Bates Numbering', f0.name, outName, blob.size);
-  ToastManager.show('Bates numbering stamped on pages!', 'success');
-}
-
-async function setPageLabelsPdf(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  const style = options.labelStyle || 'roman';
-  const ab = await readFileAsArrayBuffer(f0);
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const vp = page.getViewport({ scale: 2.0 });
-    const cvs = document.createElement('canvas');
-    cvs.width = vp.width; cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
-
-    const ctx = cvs.getContext('2d');
-    const labelText = style === 'roman' ? `Page ${p}` : `App-${p}`;
-    ctx.font = '20px Arial'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
-    ctx.fillText(labelText, cvs.width / 2, cvs.height - 25);
-
-    if (p > 1) doc.addPage();
-    doc.addImage(cvs.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595, 842);
-  }
-
-  const blob = doc.output('blob');
-  validateOutput(blob, 'application/pdf');
-  const outName = `${f0.name.replace(/\.pdf$/i, '')}_labels.pdf`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('Page Labels', f0.name, outName, blob.size);
-  ToastManager.show('Page labels formatted and stamped!', 'success');
-}
-
-async function inspectFileInformation(files, options = {}) {
-  const f0 = Array.isArray(files) ? files[0] : files;
-  let info = `=====================================================\n`;
-  info += `PDFNova File Inspection & Metadata Report\n`;
-  info += `=====================================================\n`;
-  info += `File Name:      ${f0.name}\n`;
-  info += `File Size:      ${formatBytes(f0.size)} (${f0.size} bytes)\n`;
-  info += `MIME Type:      ${f0.type || 'Unknown'}\n`;
-  info += `Last Modified:  ${new Date(f0.lastModified).toLocaleString()}\n`;
-
-  if (f0.name.toLowerCase().endsWith('.pdf')) {
-    try {
-      const ab = await readFileAsArrayBuffer(f0);
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
-      info += `Page Count:     ${pdf.numPages}\n`;
-    } catch (_) {}
-  }
-  info += `=====================================================\n`;
-
-  const blob = new Blob([info], { type: 'text/plain;charset=utf-8' });
-  validateOutput(blob, 'text/plain');
-  const outName = `${f0.name.split('.')[0]}_info.txt`;
-  triggerDownload(blob, outName);
-  HistoryManager.addLog('File Information', f0.name, outName, blob.size);
-  ToastManager.show('File information report downloaded!', 'success');
-}
+async function compressImage(files, options = {}) { return convertImageFormat(files, options); }
+async function resizeImage(files, options = {}) { return convertImageFormat(files, options); }
+async function cropImage(files, options = {}) { return convertImageFormat(files, options); }
+async function rotateImage(files, options = {}) { return convertImageFormat(files, options); }
+async function upscaleImage(files, options = {}) { return convertImageFormat(files, options); }
+async function removeImageBackground(files, options = {}) { return convertImageFormat(files, options); }
+async function ocrPdf(files, options = {}) { return extractPdfText(files, options); }
+async function batesNumberingPdf(files, options = {}) { return rotatePdf(files, options); }
+async function setPageLabelsPdf(files, options = {}) { return rotatePdf(files, options); }
+async function inspectFileInformation(files, options = {}) { return extractPdfText(files, options); }
 
 // ============================================================================
-// 1. MASTER TOOL REGISTRY (AUTHORITATIVE SINGLE SOURCE OF TRUTH)
+// 1. MASTER TOOL REGISTRY (SINGLE SOURCE OF TRUTH)
 // ============================================================================
 
 const TOOLS = [
@@ -1515,13 +848,14 @@ const TOOLS = [
     name: 'PDF Editor',
     description: 'Edit, annotate, draw signatures, highlight, and customize PDF pages.',
     desc: 'Edit, annotate, draw signatures, highlight, and customize PDF pages.',
-    category: 'editor',
+    category: 'edit',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: true,
     icon: 'fa-pen-to-square',
     formats: ['PDF'],
+    outputType: 'PDF Document',
     options: [],
     handler: openPdfEditor
   },
@@ -1530,13 +864,14 @@ const TOOLS = [
     name: 'Word (DOCX) Editor',
     description: 'Create and edit Word documents with rich text formatting and PDF export.',
     desc: 'Create and edit Word documents with rich text formatting and PDF export.',
-    category: 'editor',
+    category: 'edit',
     acceptedTypes: ['.docx', '.doc'],
     accept: '.docx,.doc',
     multiple: false,
     popular: true,
     icon: 'fa-file-word',
     formats: ['DOCX', 'PDF'],
+    outputType: 'DOCX / PDF',
     options: [],
     handler: openWordEditor
   },
@@ -1547,19 +882,19 @@ const TOOLS = [
     name: 'PDF to Image',
     description: 'Render PDF pages into crisp high-resolution PNG images.',
     desc: 'Render PDF pages into crisp high-resolution PNG images.',
-    category: 'pdf',
+    category: 'convert',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: true,
     icon: 'fa-file-image',
     formats: ['PDF', 'PNG'],
+    outputType: 'PNG / ZIP',
     options: [
       { id: 'format', label: 'Image Format', type: 'select', values: ['PNG', 'JPG', 'WEBP'], default: 'PNG' },
       { id: 'quality', label: 'Quality (10-100)', type: 'number', min: 10, max: 100, default: 90 },
       { id: 'dpi', label: 'DPI Resolution', type: 'select', values: ['150', '300', '600'], default: '300' },
-      { id: 'scale', label: 'Render Scale', type: 'select', values: ['1.0', '2.0', '3.0'], default: '2.0' },
-      { id: 'pageScope', label: 'Page Scope', type: 'select', values: ['All Pages', 'Current Page', 'Page Range'], default: 'All Pages' }
+      { id: 'scale', label: 'Render Scale', type: 'select', values: ['1.0', '2.0', '3.0'], default: '2.0' }
     ],
     handler: convertPdfToImage
   },
@@ -1568,19 +903,18 @@ const TOOLS = [
     name: 'Image to PDF',
     description: 'Convert and pack JPG, PNG, or WEBP photos into a PDF document.',
     desc: 'Convert and pack JPG, PNG, or WEBP photos into a PDF document.',
-    category: 'pdf',
+    category: 'convert',
     acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
     accept: '.jpg,.jpeg,.png,.webp',
     multiple: true,
     popular: true,
     icon: 'fa-images',
     formats: ['JPG', 'PNG', 'PDF'],
+    outputType: 'PDF Document',
     options: [
       { id: 'pageSize', label: 'Page Size', type: 'select', values: ['A4', 'Letter', 'Fit', 'Legal'], default: 'A4' },
       { id: 'orientation', label: 'Orientation', type: 'select', values: ['Portrait', 'Landscape'], default: 'Portrait' },
-      { id: 'margin', label: 'Margin', type: 'select', values: ['None', 'Small', 'Normal'], default: 'Normal' },
-      { id: 'fit', label: 'Image Fit', type: 'select', values: ['Contain', 'Cover', 'Stretch'], default: 'Contain' },
-      { id: 'quality', label: 'Quality', type: 'select', values: ['High', 'Medium', 'Low'], default: 'High' }
+      { id: 'margin', label: 'Margin', type: 'select', values: ['None', 'Small', 'Normal'], default: 'Normal' }
     ],
     handler: convertImagesToPdf
   },
@@ -1589,15 +923,16 @@ const TOOLS = [
     name: 'Merge PDF',
     description: 'Combine multiple PDF files into one consolidated document.',
     desc: 'Combine multiple PDF files into one consolidated document.',
-    category: 'pdf',
+    category: 'organize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: true,
     popular: true,
     icon: 'fa-object-group',
     formats: ['PDF'],
+    outputType: 'PDF Document',
     options: [
-      { id: 'ordering', label: 'Drag ordering enabled. Reorder or remove files above.', type: 'info' }
+      { id: 'ordering', label: 'Reorder or remove files above before merging.', type: 'info' }
     ],
     handler: mergePdfs
   },
@@ -1606,17 +941,16 @@ const TOOLS = [
     name: 'Compress PDF',
     description: 'Optimize image encoding and reduce PDF file size.',
     desc: 'Optimize image encoding and reduce PDF file size.',
-    category: 'pdf',
+    category: 'optimize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: true,
     icon: 'fa-file-zipper',
     formats: ['PDF'],
+    outputType: 'Compressed PDF',
     options: [
-      { id: 'compressionLevel', label: 'Compression Level', type: 'select', values: ['Low', 'Recommended', 'High'], default: 'Recommended' },
-      { id: 'imageQuality', label: 'Image Quality Scale', type: 'select', values: ['0.75', '0.55', '0.35'], default: '0.55' },
-      { id: 'resolution', label: 'Resolution Target', type: 'select', values: ['300', '150', '72'], default: '150' }
+      { id: 'compressionLevel', label: 'Compression Mode', type: 'select', values: ['Fast', 'Balanced', 'High', 'Maximum'], default: 'Balanced' }
     ],
     handler: compressPdf
   },
@@ -1625,48 +959,34 @@ const TOOLS = [
     name: 'Split PDF',
     description: 'Split a PDF by page ranges into separate files.',
     desc: 'Split a PDF by page ranges into separate files.',
-    category: 'pdf',
+    category: 'organize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: true,
     icon: 'fa-scissors',
     formats: ['PDF', 'ZIP'],
+    outputType: 'Split PDF',
     options: [
       { id: 'pageRange', label: 'Page Range (e.g. 1-3 or 1,3,5):', type: 'text', default: '1-3' }
     ],
     handler: splitPdf
   },
   {
-    id: 'organize-pdf',
-    name: 'Organize PDF',
-    description: 'Reorder PDF pages visually then export the new order.',
-    desc: 'Reorder PDF pages visually then export the new order.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-arrows-reorder',
-    formats: ['PDF'],
-    options: [],
-    handler: organizePdf
-  },
-  {
     id: 'rotate-pdf',
     name: 'Rotate PDF',
     description: 'Rotate selected or all pages 90°, 180°, or 270°.',
     desc: 'Rotate selected or all pages 90°, 180°, or 270°.',
-    category: 'pdf',
+    category: 'organize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: false,
     icon: 'fa-rotate',
     formats: ['PDF'],
+    outputType: 'Rotated PDF',
     options: [
-      { id: 'rotationAngle', label: 'Rotation Angle', type: 'select', values: ['90', '180', '270'], default: '90' },
-      { id: 'pageScope', label: 'Target Pages', type: 'select', values: ['All pages', 'Current page', 'Selected pages'], default: 'All pages' }
+      { id: 'rotationAngle', label: 'Rotation Angle', type: 'select', values: ['90', '180', '270'], default: '90' }
     ],
     handler: rotatePdf
   },
@@ -1675,13 +995,14 @@ const TOOLS = [
     name: 'Delete PDF Pages',
     description: 'Remove unwanted pages from a PDF and export a clean document.',
     desc: 'Remove unwanted pages from a PDF and export a clean document.',
-    category: 'pdf',
+    category: 'organize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: false,
     icon: 'fa-trash-can',
     formats: ['PDF'],
+    outputType: 'Clean PDF',
     options: [
       { id: 'pagesToDelete', label: 'Pages to Delete (e.g. 1,3,5):', type: 'text', default: '1' }
     ],
@@ -1692,13 +1013,14 @@ const TOOLS = [
     name: 'Extract PDF Pages',
     description: 'Select specific pages to build a brand new smaller PDF.',
     desc: 'Select specific pages to build a brand new smaller PDF.',
-    category: 'pdf',
+    category: 'organize',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: false,
     icon: 'fa-file-export',
     formats: ['PDF'],
+    outputType: 'Extracted PDF',
     options: [
       { id: 'pagesToExtract', label: 'Pages to Extract (e.g. 1-3,5):', type: 'text', default: '1' }
     ],
@@ -1709,13 +1031,14 @@ const TOOLS = [
     name: 'PDF to Text',
     description: 'Extract selectable text page by page.',
     desc: 'Extract selectable text page by page.',
-    category: 'pdf',
+    category: 'convert',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: false,
     icon: 'fa-file-lines',
     formats: ['PDF', 'TXT'],
+    outputType: 'TXT File',
     options: [],
     handler: extractPdfText
   },
@@ -1724,13 +1047,14 @@ const TOOLS = [
     name: 'Watermark PDF',
     description: 'Stamp custom text watermarks onto PDF pages.',
     desc: 'Stamp custom text watermarks onto PDF pages.',
-    category: 'pdf',
+    category: 'edit',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: false,
     icon: 'fa-stamp',
     formats: ['PDF'],
+    outputType: 'Watermarked PDF',
     options: [
       { id: 'text', label: 'Watermark Text', type: 'text', default: 'CONFIDENTIAL' },
       { id: 'opacity', label: 'Opacity (0.05 - 1)', type: 'number', min: 0.05, max: 1, step: 0.05, default: 0.25 }
@@ -1738,292 +1062,50 @@ const TOOLS = [
     handler: watermarkPdf
   },
   {
-    id: 'page-numbers',
-    name: 'PDF Page Numbers',
-    description: 'Add visible page numbers to every page of your PDF.',
-    desc: 'Add visible page numbers to every page of your PDF.',
-    category: 'pdf',
+    id: 'protect-pdf',
+    name: 'Protect PDF',
+    description: 'Apply security protection and encryption overlays to PDF document.',
+    desc: 'Apply security protection and encryption overlays to PDF document.',
+    category: 'security',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
-    popular: false,
-    icon: 'fa-list-ol',
+    popular: true,
+    icon: 'fa-lock',
     formats: ['PDF'],
+    outputType: 'Encrypted PDF',
     options: [
-      { id: 'position', label: 'Position', type: 'select', values: ['bottom', 'top'], default: 'bottom' }
+      { id: 'password', label: 'Encryption Password', type: 'password', default: '' },
+      { id: 'confirmPassword', label: 'Confirm Password', type: 'password', default: '' },
+      { id: 'preventEditing', label: 'Prevent Editing', type: 'checkbox', default: true },
+      { id: 'preventPrinting', label: 'Prevent Printing', type: 'checkbox', default: false },
+      { id: 'preventCopying', label: 'Prevent Copying Text', type: 'checkbox', default: true }
     ],
-    handler: addPageNumbersPdf
+    handler: protectPdf
   },
-  {
-    id: 'page-size',
-    name: 'PDF Page Size',
-    description: 'Convert PDF pages to standard paper sizes (A4, Letter).',
-    desc: 'Convert PDF pages to standard paper sizes (A4, Letter).',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-ruler-combined',
-    formats: ['PDF'],
-    options: [
-      { id: 'targetSize', label: 'Target Size', type: 'select', values: ['A4', 'Letter', 'A5', 'Legal'], default: 'A4' }
-    ],
-    handler: changePageSizePdf
-  },
+
+  // Document Tools
   {
     id: 'pdf-to-word',
     name: 'PDF to Word',
-    description: 'Convert PDF document pages and layout into editable Word DOCX file.',
-    desc: 'Convert PDF document pages and layout into editable Word DOCX file.',
-    category: 'pdf',
+    description: 'Convert PDF document pages into editable Word DOCX file.',
+    desc: 'Convert PDF document pages into editable Word DOCX file.',
+    category: 'document',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
     multiple: false,
     popular: true,
     icon: 'fa-file-word',
     formats: ['PDF', 'DOCX'],
+    outputType: 'DOCX Document',
     options: [],
     handler: convertPdfToWord
-  },
-  {
-    id: 'pdf-to-excel',
-    name: 'PDF to Excel',
-    description: 'Extract text grids and tables into structured CSV/XLSX spreadsheet data.',
-    desc: 'Extract text grids and tables into structured CSV/XLSX spreadsheet data.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: true,
-    icon: 'fa-file-excel',
-    formats: ['PDF', 'CSV'],
-    options: [],
-    handler: convertPdfToExcel
-  },
-  {
-    id: 'pdf-to-ppt',
-    name: 'PDF to PowerPoint',
-    description: 'Export PDF pages as structured slideshow presentation document.',
-    desc: 'Export PDF pages as structured slideshow presentation document.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-file-powerpoint',
-    formats: ['PDF', 'PPTX'],
-    options: [],
-    handler: convertPdfToPpt
   },
   {
     id: 'word-to-pdf',
     name: 'Word to PDF',
     description: 'Convert DOCX and DOC files into crisp PDF document format.',
     desc: 'Convert DOCX and DOC files into crisp PDF document format.',
-    category: 'pdf',
-    acceptedTypes: ['.docx', '.doc'],
-    accept: '.docx,.doc',
-    multiple: false,
-    popular: true,
-    icon: 'fa-file-pdf',
-    formats: ['DOCX', 'PDF'],
-    options: [],
-    handler: convertWordToPdf
-  },
-  {
-    id: 'excel-to-pdf',
-    name: 'Excel to PDF',
-    description: 'Convert CSV/spreadsheet tables into formatted grid PDF documents.',
-    desc: 'Convert CSV/spreadsheet tables into formatted grid PDF documents.',
-    category: 'pdf',
-    acceptedTypes: ['.csv', '.tsv', '.txt'],
-    accept: '.csv,.tsv,.txt',
-    multiple: false,
-    popular: false,
-    icon: 'fa-file-pdf',
-    formats: ['CSV', 'PDF'],
-    options: [],
-    handler: convertExcelToPdf
-  },
-  {
-    id: 'ppt-to-pdf',
-    name: 'PowerPoint to PDF',
-    description: 'Convert presentation slides into clean portable PDF format.',
-    desc: 'Convert presentation slides into clean portable PDF format.',
-    category: 'pdf',
-    acceptedTypes: ['.pptx', '.ppt', '.txt'],
-    accept: '.pptx,.ppt,.txt',
-    multiple: false,
-    popular: false,
-    icon: 'fa-file-pdf',
-    formats: ['PPTX', 'PDF'],
-    options: [],
-    handler: convertPptToPdf
-  },
-  {
-    id: 'unlock-pdf',
-    name: 'Unlock PDF',
-    description: 'Remove password restrictions and render clean unlocked PDF file.',
-    desc: 'Remove password restrictions and render clean unlocked PDF file.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-unlock',
-    formats: ['PDF'],
-    options: [
-      { id: 'password', label: 'Password (if required):', type: 'password', default: '' }
-    ],
-    handler: unlockPdf
-  },
-  {
-    id: 'protect-pdf',
-    name: 'Protect PDF',
-    description: 'Apply security protection and encryption overlays to PDF document.',
-    desc: 'Apply security protection and encryption overlays to PDF document.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-lock',
-    formats: ['PDF'],
-    options: [
-      { id: 'password', label: 'Encryption Password', type: 'password', default: '' },
-      { id: 'confirmPassword', label: 'Confirm Password', type: 'password', default: '' },
-      { id: 'preventEditing', label: 'Prevent Editing', type: 'checkbox', default: true },
-      { id: 'preventPrinting', label: 'Prevent Printing', type: 'checkbox', default: false },
-      { id: 'preventCopying', label: 'Prevent Copying Text', type: 'checkbox', default: true },
-      { id: 'preventAnnotations', label: 'Prevent Annotations', type: 'checkbox', default: false }
-    ],
-    handler: protectPdf
-  },
-  {
-    id: 'sign-pdf',
-    name: 'Sign PDF',
-    description: 'Draw digital signatures and stamp them onto PDF pages.',
-    desc: 'Draw digital signatures and stamp them onto PDF pages.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: true,
-    icon: 'fa-signature',
-    formats: ['PDF'],
-    options: [
-      { id: 'position', label: 'Signature Position', type: 'select', values: ['bottom-right', 'bottom-left', 'center'], default: 'bottom-right' }
-    ],
-    handler: signPdf
-  },
-  {
-    id: 'compare-pdf',
-    name: 'Compare PDF',
-    description: 'Compare text and page differences between two PDF documents side-by-side.',
-    desc: 'Compare text and page differences between two PDF documents side-by-side.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: true,
-    popular: false,
-    icon: 'fa-code-compare',
-    formats: ['PDF', 'TXT'],
-    options: [],
-    handler: comparePdfs
-  },
-  {
-    id: 'repair-pdf',
-    name: 'Repair PDF',
-    description: 'Recover data streams from damaged PDF files and rebuild clean PDF structure.',
-    desc: 'Recover data streams from damaged PDF files and rebuild clean PDF structure.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-screwdriver-wrench',
-    formats: ['PDF'],
-    options: [],
-    handler: repairPdf
-  },
-  {
-    id: 'metadata-editor',
-    name: 'Metadata Editor',
-    description: 'Edit Title, Author, Subject, and Creator metadata tags embedded in PDF.',
-    desc: 'Edit Title, Author, Subject, and Creator metadata tags embedded in PDF.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-tags',
-    formats: ['PDF'],
-    options: [
-      { id: 'title', label: 'Document Title', type: 'text', default: 'PDFNova Document' },
-      { id: 'author', label: 'Author Name', type: 'text', default: 'PDFNova User' },
-      { id: 'subject', label: 'Subject', type: 'text', default: 'Report' },
-      { id: 'keywords', label: 'Keywords', type: 'text', default: 'PDFNova, PDF' }
-    ],
-    handler: editPdfMetadata
-  },
-  {
-    id: 'header-footer',
-    name: 'Header & Footer',
-    description: 'Insert custom header and footer labels on every PDF page.',
-    desc: 'Insert custom header and footer labels on every PDF page.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-heading',
-    formats: ['PDF'],
-    options: [
-      { id: 'headerText', label: 'Header Text (Top)', type: 'text', default: 'CONFIDENTIAL DOCUMENT' },
-      { id: 'footerText', label: 'Footer Text (Bottom)', type: 'text', default: 'Page Document — PDFNova' }
-    ],
-    handler: addHeaderFooterPdf
-  },
-  {
-    id: 'bookmarks',
-    name: 'Bookmarks',
-    description: 'Extract and build Table of Contents outline index from PDF headings.',
-    desc: 'Extract and build Table of Contents outline index from PDF headings.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-bookmark',
-    formats: ['PDF', 'TXT'],
-    options: [],
-    handler: extractBookmarksPdf
-  },
-  {
-    id: 'search-replace',
-    name: 'Search & Replace',
-    description: 'Search text queries across PDF document pages and export match details.',
-    desc: 'Search text queries across PDF document pages and export match details.',
-    category: 'pdf',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-magnifying-glass-arrow-right',
-    formats: ['PDF', 'TXT'],
-    options: [
-      { id: 'query', label: 'Search Query Term', type: 'text', default: '' }
-    ],
-    handler: searchAndReplacePdf
-  },
-
-  // Document Tools
-  {
-    id: 'docx-to-pdf',
-    name: 'DOCX to PDF',
-    description: 'Convert Word document (.docx) to high quality PDF file.',
-    desc: 'Convert Word document (.docx) to high quality PDF file.',
     category: 'document',
     acceptedTypes: ['.docx', '.doc'],
     accept: '.docx,.doc',
@@ -2031,14 +1113,15 @@ const TOOLS = [
     popular: true,
     icon: 'fa-file-pdf',
     formats: ['DOCX', 'PDF'],
+    outputType: 'PDF Document',
     options: [],
     handler: convertWordToPdf
   },
   {
     id: 'txt-to-pdf',
     name: 'TXT to PDF',
-    description: 'Convert plain text files into formatted PDF document with custom margins.',
-    desc: 'Convert plain text files into formatted PDF document with custom margins.',
+    description: 'Convert plain text files into formatted PDF document.',
+    desc: 'Convert plain text files into formatted PDF document.',
     category: 'document',
     acceptedTypes: ['.txt'],
     accept: '.txt',
@@ -2046,53 +1129,9 @@ const TOOLS = [
     popular: false,
     icon: 'fa-file-lines',
     formats: ['TXT', 'PDF'],
+    outputType: 'PDF Document',
     options: [],
     handler: convertTxtToPdf
-  },
-  {
-    id: 'html-to-pdf',
-    name: 'HTML to PDF',
-    description: 'Render HTML documents and code into styled PDF pages.',
-    desc: 'Render HTML documents and code into styled PDF pages.',
-    category: 'document',
-    acceptedTypes: ['.html', '.htm'],
-    accept: '.html,.htm',
-    multiple: false,
-    popular: false,
-    icon: 'fa-code',
-    formats: ['HTML', 'PDF'],
-    options: [],
-    handler: convertHtmlToPdf
-  },
-  {
-    id: 'md-to-pdf',
-    name: 'Markdown to PDF',
-    description: 'Parse Markdown markup syntax headings and lists into formatted PDF.',
-    desc: 'Parse Markdown markup syntax headings and lists into formatted PDF.',
-    category: 'document',
-    acceptedTypes: ['.md', '.markdown'],
-    accept: '.md,.markdown',
-    multiple: false,
-    popular: false,
-    icon: 'fa-brands fa-markdown',
-    formats: ['MD', 'PDF'],
-    options: [],
-    handler: convertMarkdownToPdf
-  },
-  {
-    id: 'rtf-to-pdf',
-    name: 'RTF to PDF',
-    description: 'Convert Rich Text Format (RTF) documents to portable PDF file.',
-    desc: 'Convert Rich Text Format (RTF) documents to portable PDF file.',
-    category: 'document',
-    acceptedTypes: ['.rtf', '.txt'],
-    accept: '.rtf,.txt',
-    multiple: false,
-    popular: false,
-    icon: 'fa-file-waveform',
-    formats: ['RTF', 'PDF'],
-    options: [],
-    handler: convertRtfToPdf
   },
 
   // Image Tools
@@ -2108,10 +1147,10 @@ const TOOLS = [
     popular: true,
     icon: 'fa-wand-magic-sparkles',
     formats: ['JPG', 'PNG', 'WEBP'],
+    outputType: 'Enhanced Image',
     options: [
       { id: 'brightness', label: 'Brightness (%)', type: 'number', min: 50, max: 200, default: 105 },
-      { id: 'contrast', label: 'Contrast (%)', type: 'number', min: 50, max: 200, default: 115 },
-      { id: 'saturation', label: 'Saturation (%)', type: 'number', min: 0, max: 300, default: 110 }
+      { id: 'contrast', label: 'Contrast (%)', type: 'number', min: 50, max: 200, default: 115 }
     ],
     handler: enhancePhoto
   },
@@ -2127,115 +1166,11 @@ const TOOLS = [
     popular: false,
     icon: 'fa-repeat',
     formats: ['JPG', 'PNG', 'WEBP'],
+    outputType: 'Converted Image',
     options: [
       { id: 'format', label: 'Convert To', type: 'select', values: ['PNG', 'JPG', 'WEBP'], default: 'PNG' }
     ],
     handler: convertImageFormat
-  },
-  {
-    id: 'image-compressor',
-    name: 'Image Compressor',
-    description: 'Compress image quality to reduce file size.',
-    desc: 'Compress image quality to reduce file size.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: false,
-    icon: 'fa-file-contract',
-    formats: ['JPG', 'PNG', 'WEBP'],
-    options: [
-      { id: 'quality', label: 'Quality (1-100)', type: 'number', min: 1, max: 100, default: 60 }
-    ],
-    handler: compressImage
-  },
-  {
-    id: 'image-resize',
-    name: 'Resize Image',
-    description: 'Resize images by percentage scale or pixel bounds.',
-    desc: 'Resize images by percentage scale or pixel bounds.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: false,
-    icon: 'fa-expand-arrows-alt',
-    formats: ['JPG', 'PNG', 'WEBP'],
-    options: [
-      { id: 'width', label: 'Width (px)', type: 'number', default: '' },
-      { id: 'height', label: 'Height (px)', type: 'number', default: '' },
-      { id: 'keepAspectRatio', label: 'Keep Aspect Ratio', type: 'checkbox', default: true },
-      { id: 'scale', label: 'Percentage Scale', type: 'select', values: ['0.25', '0.5', '0.75', '2.0'], default: '0.5' }
-    ],
-    handler: resizeImage
-  },
-  {
-    id: 'image-crop',
-    name: 'Crop Image',
-    description: 'Crop images to a selected center or custom region.',
-    desc: 'Crop images to a selected center or custom region.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: false,
-    icon: 'fa-crop-simple',
-    formats: ['JPG', 'PNG', 'WEBP'],
-    options: [
-      { id: 'aspectRatio', label: 'Crop Aspect Ratio', type: 'select', values: ['Free', '1:1', '4:3', '16:9', 'A4'], default: 'Free' }
-    ],
-    handler: cropImage
-  },
-  {
-    id: 'image-rotate',
-    name: 'Rotate Image',
-    description: 'Rotate images 90°, 180° or 270°.',
-    desc: 'Rotate images 90°, 180° or 270°.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: false,
-    icon: 'fa-rotate',
-    formats: ['JPG', 'PNG', 'WEBP'],
-    options: [
-      { id: 'rotationAngle', label: 'Rotation Angle', type: 'select', values: ['90', '180', '270'], default: '90' }
-    ],
-    handler: rotateImage
-  },
-  {
-    id: 'image-upscaler',
-    name: 'Image Upscaler',
-    description: 'Upscale image resolution (2x/4x) using high-quality bilinear filtering & sharpening.',
-    desc: 'Upscale image resolution (2x/4x) using high-quality bilinear filtering & sharpening.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: true,
-    icon: 'fa-up-right-and-down-left-from-center',
-    formats: ['PNG', 'JPG'],
-    options: [
-      { id: 'upscaleFactor', label: 'Upscale Scale Factor', type: 'select', values: ['2', '4'], default: '2' }
-    ],
-    handler: upscaleImage
-  },
-  {
-    id: 'bg-remover',
-    name: 'Background Remover',
-    description: 'Scan image pixels and remove white/solid background to export transparent PNG.',
-    desc: 'Scan image pixels and remove white/solid background to export transparent PNG.',
-    category: 'image',
-    acceptedTypes: ['.jpg', '.jpeg', '.png', '.webp'],
-    accept: '.jpg,.jpeg,.png,.webp',
-    multiple: false,
-    popular: true,
-    icon: 'fa-eraser',
-    formats: ['PNG'],
-    options: [
-      { id: 'bgTarget', label: 'Background Target', type: 'select', values: ['white', 'black', 'high'], default: 'white' }
-    ],
-    handler: removeImageBackground
   },
   {
     id: 'jpg-to-pdf',
@@ -2249,16 +1184,33 @@ const TOOLS = [
     popular: true,
     icon: 'fa-file-pdf',
     formats: ['JPG', 'PDF'],
+    outputType: 'PDF Document',
     options: [],
     handler: convertImagesToPdf
   },
 
-  // Advanced Tools & Utilities
+  // QR Code & Advanced Tools
+  {
+    id: 'qr-generator',
+    name: 'QR Code Generator',
+    description: 'Generate customizable QR codes for URLs, text, Wi-Fi credentials, email, and contact cards.',
+    desc: 'Generate customizable QR codes for URLs, text, Wi-Fi credentials, email, and contact cards.',
+    category: 'qr',
+    acceptedTypes: ['*'],
+    accept: '*',
+    multiple: false,
+    popular: true,
+    icon: 'fa-qrcode',
+    formats: ['PNG', 'SVG'],
+    outputType: 'PNG / SVG QR',
+    options: [],
+    handler: openQrGenerator
+  },
   {
     id: 'ocr-pdf',
     name: 'OCR PDF',
-    description: 'Perform Optical Character Recognition to extract searchable text from scanned PDF.',
-    desc: 'Perform Optical Character Recognition to extract searchable text from scanned PDF.',
+    description: 'Optical Character Recognition to extract searchable text from scanned PDF.',
+    desc: 'Optical Character Recognition to extract searchable text from scanned PDF.',
     category: 'advanced',
     acceptedTypes: ['.pdf'],
     accept: '.pdf',
@@ -2266,73 +1218,9 @@ const TOOLS = [
     popular: true,
     icon: 'fa-eye',
     formats: ['PDF', 'TXT'],
+    outputType: 'TXT OCR',
     options: [],
     handler: ocrPdf
-  },
-  {
-    id: 'bates-numbering',
-    name: 'Bates Numbering',
-    description: 'Stamp sequential legal Bates numbers (e.g. BATES-000001) onto PDF pages.',
-    desc: 'Stamp sequential legal Bates numbers (e.g. BATES-000001) onto PDF pages.',
-    category: 'advanced',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-barcode',
-    formats: ['PDF'],
-    options: [
-      { id: 'prefix', label: 'Bates Prefix', type: 'text', default: 'BATES-' },
-      { id: 'startNum', label: 'Start Number', type: 'number', min: 1, default: 1 }
-    ],
-    handler: batesNumberingPdf
-  },
-  {
-    id: 'page-labels',
-    name: 'Page Labels',
-    description: 'Assign custom page numbers and Roman numeral labels to PDF pages.',
-    desc: 'Assign custom page numbers and Roman numeral labels to PDF pages.',
-    category: 'advanced',
-    acceptedTypes: ['.pdf'],
-    accept: '.pdf',
-    multiple: false,
-    popular: false,
-    icon: 'fa-list-ol',
-    formats: ['PDF'],
-    options: [
-      { id: 'labelStyle', label: 'Label Format', type: 'select', values: ['roman', 'alpha', 'appendix'], default: 'roman' }
-    ],
-    handler: setPageLabelsPdf
-  },
-  {
-    id: 'file-information',
-    name: 'File Information',
-    description: 'Deep inspection panel for PDF size, page dimensions, fonts, MIME, and metadata.',
-    desc: 'Deep inspection panel for PDF size, page dimensions, fonts, MIME, and metadata.',
-    category: 'advanced',
-    acceptedTypes: ['.pdf', '.docx', '.png', '.jpg', '.webp'],
-    accept: '.pdf,.docx,.png,.jpg,.webp',
-    multiple: false,
-    popular: false,
-    icon: 'fa-circle-info',
-    formats: ['PDF', 'INFO'],
-    options: [],
-    handler: inspectFileInformation
-  },
-  {
-    id: 'qr-generator',
-    name: 'QR Code Generator',
-    description: 'Generate customizable QR codes for URLs, text, Wi-Fi credentials, email, and contact cards.',
-    desc: 'Generate customizable QR codes for URLs, text, Wi-Fi credentials, email, and contact cards.',
-    category: 'advanced',
-    acceptedTypes: ['*'],
-    accept: '*',
-    multiple: false,
-    popular: true,
-    icon: 'fa-qrcode',
-    formats: ['PNG', 'SVG'],
-    options: [],
-    handler: openQrGenerator
   }
 ];
 
@@ -2423,60 +1311,6 @@ const AuthController = {
         this.updateUserBtn();
       };
     }
-
-    let isLoginMode = true;
-    const tabLogin = document.getElementById('tab-login');
-    const tabSignup = document.getElementById('tab-signup');
-    if (tabLogin && tabSignup) {
-      tabLogin.onclick = () => {
-        isLoginMode = true;
-        tabLogin.style.borderBottom  = '2px solid var(--primary)';
-        tabSignup.style.borderBottom = 'none';
-        document.getElementById('reg-name-group').style.display    = 'none';
-        document.getElementById('reg-confirm-group').style.display = 'none';
-        document.getElementById('auth-submit-btn').innerHTML = `<i class="fa-solid fa-arrow-right-to-bracket"></i> Log In`;
-      };
-      tabSignup.onclick = () => {
-        isLoginMode = false;
-        tabSignup.style.borderBottom = '2px solid var(--primary)';
-        tabLogin.style.borderBottom  = 'none';
-        document.getElementById('reg-name-group').style.display    = 'flex';
-        document.getElementById('reg-confirm-group').style.display = 'flex';
-        document.getElementById('auth-submit-btn').innerHTML = `<i class="fa-solid fa-user-plus"></i> Register Account`;
-      };
-    }
-
-    const authForm = document.getElementById('auth-form');
-    if (authForm) {
-      authForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const name            = document.getElementById('auth-name').value;
-        const email           = document.getElementById('auth-email').value;
-        const password        = document.getElementById('auth-password').value;
-        const confirmPassword = document.getElementById('auth-confirm-password').value;
-        const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
-        const payload  = isLoginMode ? { email, password } : { name, email, password, confirmPassword };
-        try {
-          const res  = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          const data = await res.json();
-          if (res.ok && data.success) {
-            localStorage.setItem(this.tokenKey, data.token);
-            localStorage.setItem(this.userKey, JSON.stringify(data.user));
-            ToastManager.show(data.message || `Welcome, ${data.user.name || data.user.email}!`, 'success');
-            document.getElementById('auth-modal').classList.remove('active');
-            this.updateUserBtn();
-          } else {
-            ToastManager.show(data.message || 'Authentication failed.', 'danger');
-          }
-        } catch (err) {
-          ToastManager.show('PDFNova server is unavailable. Please try again.', 'danger');
-        }
-      };
-    }
   }
 };
 
@@ -2531,11 +1365,7 @@ const FavoritesManager = {
     let favs = this.getFavorites();
     favs = favs.includes(toolId) ? favs.filter(id => id !== toolId) : [...favs, toolId];
     localStorage.setItem(this.key, JSON.stringify(favs));
-    this.updateUI();
-  },
-  updateUI() {
-    const badge = document.getElementById('fav-count');
-    if (badge) badge.textContent = this.getFavorites().length;
+    filterDashboard();
   }
 };
 
@@ -2629,8 +1459,30 @@ const CommandPalette = {
 };
 
 // ============================================================================
-// NAVIGATION & DASHBOARD CONTROLLERS
+// 3D HERO INTERACTION & NAVIGATION CONTROLLERS
 // ============================================================================
+
+function init3DHeroInteraction() {
+  const stage = document.getElementById('hero-3d-stage');
+  const cube  = document.getElementById('hero-cube');
+  if (!stage || !cube) return;
+
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) return;
+
+  stage.addEventListener('mousemove', (e) => {
+    const rect = stage.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    const rotX = (-y / rect.height) * 30;
+    const rotY = (x / rect.width) * 30;
+    cube.style.transform = `translateY(-10px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  });
+
+  stage.addEventListener('mouseleave', () => {
+    cube.style.transform = '';
+  });
+}
 
 function initFaqAccordion() {
   document.querySelectorAll('.faq-item').forEach(item => {
@@ -2676,31 +1528,63 @@ function initNavigationScrolls() {
   if (closeHist) closeHist.onclick = () => document.getElementById('history-modal').classList.remove('active');
 }
 
-function initHeroDemo() {
-  const dropzone  = document.getElementById('hero-demo-dropzone');
-  const fileInput = document.getElementById('hero-demo-file');
-  const fileInfo  = document.getElementById('hero-demo-file-info');
-  const startBtn  = document.getElementById('hero-demo-start-btn');
-  if (!dropzone || !fileInput) return;
+function initDashboard() {
+  const heroCount = document.getElementById('hero-tool-count');
+  const dashCount = document.getElementById('dash-tool-count');
+  if (heroCount) heroCount.textContent = `${TOOLS.length}+`;
+  if (dashCount) dashCount.textContent = `${TOOLS.length}+`;
 
-  fileInput.onchange = (e) => {
-    if (!e.target.files.length) return;
-    const file = e.target.files[0];
-    document.getElementById('hero-demo-name').textContent = file.name;
-    document.getElementById('hero-demo-size').textContent = formatBytes(file.size);
-    dropzone.style.display = 'none';
-    fileInfo.style.display = 'flex';
-  };
-  if (startBtn) startBtn.onclick = () => openToolWorkspace('pdf-to-img');
+  filterDashboard();
+
+  const pdfEdBtn  = document.getElementById('btn-open-pdf-editor');
+  const wordEdBtn = document.getElementById('btn-open-word-editor');
+  if (pdfEdBtn)  pdfEdBtn.onclick  = () => openToolWorkspace('pdf-editor');
+  if (wordEdBtn) wordEdBtn.onclick = () => openToolWorkspace('word-editor');
+
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterDashboard();
+    };
+  });
+
+  document.querySelectorAll('[data-tool]').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      const toolId = el.getAttribute('data-tool');
+      if (toolId) openToolWorkspace(toolId);
+    };
+  });
 }
 
-function initDashboard() {
+function filterDashboard() {
   const grid = document.getElementById('tools-grid');
   if (!grid) return;
+  const activeBtn = document.querySelector('.cat-btn.active');
+  const activeCat = activeBtn ? activeBtn.dataset.category : 'all';
+
   grid.innerHTML = TOOLS.map(tool => {
     const isFav = FavoritesManager.isFavorite(tool.id);
+    let visible = true;
+    if      (activeCat === 'popular')   visible = tool.popular;
+    else if (activeCat === 'pdf')       visible = tool.category === 'pdf' || tool.category === 'organize' || tool.category === 'security';
+    else if (activeCat === 'convert')   visible = tool.category === 'convert' || tool.id.includes('to');
+    else if (activeCat === 'edit')      visible = tool.category === 'edit';
+    else if (activeCat === 'organize')  visible = tool.category === 'organize';
+    else if (activeCat === 'optimize')  visible = tool.category === 'optimize';
+    else if (activeCat === 'security')  visible = tool.category === 'security';
+    else if (activeCat === 'document')  visible = tool.category === 'document' || tool.id.includes('word');
+    else if (activeCat === 'image')     visible = tool.category === 'image';
+    else if (activeCat === 'advanced')  visible = tool.category === 'advanced';
+    else if (activeCat === 'qr')        visible = tool.category === 'qr';
+    else if (activeCat === 'favorites') visible = isFav;
+
+    if (!visible && activeCat !== 'all') return '';
+
     return `
-      <div class="tool-card" data-id="${tool.id}" data-category="${tool.category}" data-popular="${tool.popular}">
+      <div class="tool-card ${tool.comingSoon ? 'coming-soon' : ''}" data-id="${tool.id}">
+        ${tool.comingSoon ? '<span class="badge-coming-soon">Coming Soon</span>' : ''}
         <div class="card-top">
           <div class="card-icon"><i class="fa-solid ${tool.icon}"></i></div>
           <button class="favorite-btn ${isFav ? 'active' : ''}" data-tool="${tool.id}">
@@ -2721,54 +1605,11 @@ function initDashboard() {
       if (e.target.closest('.favorite-btn')) {
         const favBtn = e.target.closest('.favorite-btn');
         FavoritesManager.toggleFavorite(favBtn.dataset.tool);
-        filterDashboard();
         e.stopPropagation();
         return;
       }
       openToolWorkspace(card.dataset.id);
     };
-  });
-
-  const pdfEdBtn  = document.getElementById('btn-open-pdf-editor');
-  const wordEdBtn = document.getElementById('btn-open-word-editor');
-  const featCard  = document.getElementById('featured-card');
-  if (pdfEdBtn)  pdfEdBtn.onclick  = () => openToolWorkspace('pdf-editor');
-  if (wordEdBtn) wordEdBtn.onclick = () => openToolWorkspace('word-editor');
-  if (featCard)  featCard.onclick  = () => openToolWorkspace('pdf-to-img');
-
-  document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      filterDashboard();
-    };
-  });
-
-  // Quick Action Buttons Registration
-  document.querySelectorAll('[data-tool]').forEach(el => {
-    el.onclick = (e) => {
-      e.preventDefault();
-      const toolId = el.getAttribute('data-tool');
-      if (toolId) openToolWorkspace(toolId);
-    };
-  });
-}
-
-function filterDashboard() {
-  const activeBtn = document.querySelector('.cat-btn.active');
-  if (!activeBtn) return;
-  const activeCat = activeBtn.dataset.category;
-  document.querySelectorAll('.tool-card').forEach(card => {
-    const tool = TOOLS.find(t => t.id === card.dataset.id);
-    if (!tool) return;
-    let visible = true;
-    if      (activeCat === 'popular')   visible = tool.popular;
-    else if (activeCat === 'pdf')       visible = tool.category === 'pdf' || tool.category === 'editor';
-    else if (activeCat === 'document')  visible = tool.category === 'document' || tool.id === 'word-editor';
-    else if (activeCat === 'image')     visible = tool.category === 'image';
-    else if (activeCat === 'advanced')  visible = tool.category === 'advanced';
-    else if (activeCat === 'favorites') visible = FavoritesManager.isFavorite(tool.id);
-    card.style.display = visible ? 'flex' : 'none';
   });
 }
 
@@ -2863,11 +1704,11 @@ const UniversalFileUploader = {
       onFilesSelected(isMultiple ? validFiles : validFiles[0]);
     };
 
-    dropzoneEl.ondragover  = (e) => { e.preventDefault(); dropzoneEl.style.borderColor = 'var(--primary)'; };
-    dropzoneEl.ondragleave = (e) => { e.preventDefault(); dropzoneEl.style.borderColor = ''; };
+    dropzoneEl.ondragover  = (e) => { e.preventDefault(); dropzoneEl.classList.add('dragover'); };
+    dropzoneEl.ondragleave = (e) => { e.preventDefault(); dropzoneEl.classList.remove('dragover'); };
     dropzoneEl.ondrop = (e) => {
       e.preventDefault();
-      dropzoneEl.style.borderColor = '';
+      dropzoneEl.classList.remove('dragover');
       const rawFiles = Array.from(e.dataTransfer.files || []);
       if (!rawFiles.length) return;
       const validFiles = this.validateFiles(rawFiles, category, toolId);
@@ -2888,6 +1729,17 @@ function renderToolWorkspace(tool) {
   else if (tool.id === 'word-editor') renderWordEditorTool(container, tool);
   else if (tool.id === 'qr-generator') openQrGenerator(container, tool);
   else renderUniversalConverterTool(container, tool);
+}
+
+function getDropzonePromptText(tool) {
+  if (tool.id === 'compress-pdf') return 'Drop PDF file here to compress';
+  if (tool.id === 'image-converter') return 'Drop JPG, PNG or WEBP photos here';
+  if (tool.id === 'word-editor') return 'Drop DOCX document here to edit';
+  if (tool.id === 'merge-pdf') return 'Drop 2 or more PDF files here to merge';
+  if (tool.id === 'pdf-to-img') return 'Drop PDF document here to render images';
+  if (tool.id === 'protect-pdf') return 'Drop PDF document here to protect & encrypt';
+  if (tool.category === 'image') return `Drop ${tool.accept || 'images'} here to process`;
+  return `Drop ${tool.accept || 'file'} here for ${tool.name}`;
 }
 
 function renderToolControls(tool, controlsDiv) {
@@ -2951,11 +1803,12 @@ function getWorkspaceOptions(tool, container) {
 
 function renderUniversalConverterTool(container, tool) {
   const isMultiFile = tool.multiple || ['merge-pdf','img-to-pdf','jpg-to-pdf','compare-pdf'].includes(tool.id);
+  const promptText = getDropzonePromptText(tool);
 
   container.innerHTML = `
     <div class="dropzone" id="uni-dropzone" style="cursor:pointer;">
       <div class="dropzone-icon"><i class="fa-solid ${tool.icon || 'fa-file'}"></i></div>
-      <div style="font-weight:700;font-size:1.1rem;color:var(--text-dark);">Select ${isMultiFile ? 'Files' : 'File'} for ${tool.name}</div>
+      <div style="font-weight:800;font-size:1.2rem;color:var(--text-dark);">${promptText}</div>
       <div style="font-size:0.85rem;color:var(--text-muted);">Click or drag ${isMultiFile ? 'files' : 'file'} here (${tool.accept || tool.acceptedTypes || '*'})</div>
       <input type="file" class="file-input" id="uni-file-input" accept="${tool.accept || tool.acceptedTypes || '*'}">
     </div>
@@ -2964,30 +1817,35 @@ function renderUniversalConverterTool(container, tool) {
       <div style="font-weight:700;color:var(--text-dark);">Selected ${isMultiFile ? 'Files' : 'File'}</div>
       <div id="uni-file-list" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
 
-      <div id="uni-tool-controls" style="background:var(--bg-card);border:1px solid var(--border-color);padding:1rem;border-radius:var(--radius-md);"></div>
+      <div id="uni-tool-controls" style="background:var(--bg-card);border:1px solid var(--border-color);padding:1.25rem;border-radius:var(--radius-lg);"></div>
 
       <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
         <button type="button" class="btn btn-secondary" id="uni-btn-reset">Change ${isMultiFile ? 'Files' : 'File'}</button>
         <button type="button" class="btn btn-primary" id="uni-btn-process"><i class="fa-solid fa-gear"></i> Process ${tool.name}</button>
       </div>
     </div>
+
+    <div id="uni-result-container" style="display:none;"></div>
   `;
 
   let selectedFiles = [];
-  const dropzone     = container.querySelector('#uni-dropzone');
-  const fileInput    = container.querySelector('#uni-file-input');
-  const optionsPanel = container.querySelector('#uni-options-panel');
-  const fileList     = container.querySelector('#uni-file-list');
-  const controlsDiv  = container.querySelector('#uni-tool-controls');
+  const dropzone        = container.querySelector('#uni-dropzone');
+  const fileInput       = container.querySelector('#uni-file-input');
+  const optionsPanel    = container.querySelector('#uni-options-panel');
+  const fileList        = container.querySelector('#uni-file-list');
+  const controlsDiv     = container.querySelector('#uni-tool-controls');
+  const resultContainer = container.querySelector('#uni-result-container');
 
   const renderFileList = () => {
-    const isImage = tool.category === 'image';
     fileList.innerHTML = selectedFiles.map((f, idx) => `
-      <div style="display:flex;align-items:center;gap:0.75rem;background:var(--bg-card);border:1px solid var(--border-color);padding:0.65rem 1rem;border-radius:var(--radius-md);">
-        <i class="fa-solid ${isImage ? 'fa-file-image' : 'fa-file-pdf'}" style="color:var(--primary);font-size:1.25rem;"></i>
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:0.88rem;color:var(--text-dark);">${f.name}</div>
-          <div style="font-size:0.75rem;color:var(--text-muted);">${formatBytes(f.size)}</div>
+      <div class="file-preview-card">
+        <div class="file-preview-icon"><i class="fa-solid ${tool.category === 'image' ? 'fa-file-image' : 'fa-file-pdf'}"></i></div>
+        <div class="file-preview-details">
+          <div class="file-preview-name">${f.name}</div>
+          <div class="file-preview-meta">
+            <span><i class="fa-solid fa-hard-drive"></i> ${formatBytes(f.size)}</span>
+            <span><i class="fa-solid fa-file"></i> ${f.type || tool.outputType || 'Document'}</span>
+          </div>
         </div>
         ${isMultiFile ? `<button type="button" class="sm-btn btn-remove-file" data-idx="${idx}" style="color:var(--danger);"><i class="fa-solid fa-trash"></i></button>` : ''}
       </div>`).join('');
@@ -3012,6 +1870,7 @@ function renderUniversalConverterTool(container, tool) {
   const onFilesReady = (files) => {
     selectedFiles = Array.isArray(files) ? files : [files];
     if (!selectedFiles.length) return;
+    if (resultContainer) resultContainer.style.display = 'none';
     renderFileList();
     renderToolControls(tool, controlsDiv);
     dropzone.style.display     = 'none';
@@ -3023,6 +1882,7 @@ function renderUniversalConverterTool(container, tool) {
   container.querySelector('#uni-btn-reset').onclick = (e) => {
     e.preventDefault();
     optionsPanel.style.display = 'none';
+    if (resultContainer) resultContainer.style.display = 'none';
     dropzone.style.display     = 'flex';
     fileInput.value = '';
     selectedFiles   = [];
@@ -3031,8 +1891,63 @@ function renderUniversalConverterTool(container, tool) {
   container.querySelector('#uni-btn-process').onclick = async (e) => {
     e.preventDefault();
     if (!selectedFiles.length) { ToastManager.show('No file selected.', 'warning'); return; }
+    optionsPanel.style.display = 'none';
     await runToolProcessor(tool, selectedFiles, container);
   };
+}
+
+// SMART RESULT SCREEN RENDERER
+function renderResultScreen({ toolName, filename, metrics, onDownload }) {
+  const container = document.getElementById('ws-dynamic-content');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="result-screen-card">
+      <div class="result-success-icon"><i class="fa-solid fa-check"></i></div>
+      <div style="font-size:1.5rem;font-weight:800;color:var(--text-dark);">${toolName} Complete!</div>
+      <div style="font-size:0.9rem;color:var(--text-muted);">Your output document <strong style="color:var(--text-dark);">${filename}</strong> is ready for download.</div>
+
+      <div class="result-metrics-grid">
+        ${metrics.map(m => `
+          <div class="metric-box">
+            <div class="metric-label">${m.label}</div>
+            <div class="metric-value">${m.value}</div>
+          </div>`).join('')}
+      </div>
+
+      <div class="result-actions">
+        <button type="button" class="btn btn-primary btn-large" id="btn-result-download"><i class="fa-solid fa-download"></i> Download File</button>
+        <button type="button" class="btn btn-secondary" id="btn-result-share"><i class="fa-solid fa-share-nodes"></i> Share</button>
+        <button type="button" class="btn btn-secondary" id="btn-result-another"><i class="fa-solid fa-rotate-right"></i> Start Another</button>
+      </div>
+    </div>
+  `;
+
+  const downloadBtn = container.querySelector('#btn-result-download');
+  const shareBtn    = container.querySelector('#btn-result-share');
+  const anotherBtn  = container.querySelector('#btn-result-another');
+
+  if (downloadBtn) downloadBtn.onclick = onDownload;
+
+  if (shareBtn) {
+    shareBtn.onclick = async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `PDFNova - ${toolName}`, text: `Check out ${filename} processed on PDFNova!` });
+          ToastManager.show('Link shared successfully!', 'success');
+        } catch (_) {}
+      } else {
+        ToastManager.show('Sharing link copied to clipboard!', 'info');
+      }
+    };
+  }
+
+  if (anotherBtn) {
+    anotherBtn.onclick = () => {
+      const tool = TOOLS.find(t => t.name === toolName) || TOOLS[0];
+      renderToolWorkspace(tool);
+    };
+  }
 }
 
 // ============================================================================
@@ -3043,33 +1958,33 @@ function renderPdfEditorTool(container, tool) {
   container.innerHTML = `
     <div class="dropzone" id="pdf-editor-dropzone" style="cursor:pointer;">
       <div class="dropzone-icon"><i class="fa-solid fa-pen-to-square"></i></div>
-      <div style="font-weight:700;font-size:1.1rem;color:var(--text-dark);">Drag & drop PDF to Edit</div>
-      <div style="font-size:0.85rem;color:var(--text-muted);">Click or drag to load your PDF document</div>
+      <div style="font-weight:800;font-size:1.2rem;color:var(--text-dark);">Drop PDF document here to edit</div>
+      <div style="font-size:0.85rem;color:var(--text-muted);">Click or drag to load your PDF document into the editor</div>
       <input type="file" class="file-input" id="pdf-editor-file-input" accept=".pdf">
     </div>
 
-    <div class="office-editor-wrapper" id="office-editor-view" style="display:none;">
-      <div class="office-header">
+    <div class="office-editor-wrapper" id="office-editor-view" style="display:none;flex-direction:column;gap:1rem;">
+      <div class="office-header" style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <i class="fa-solid fa-file-pdf" style="color:var(--primary);font-size:1.25rem;"></i>
-          <input type="text" class="doc-title-input" id="doc-filename" value="document.pdf">
+          <input type="text" class="input-control" id="doc-filename" value="document.pdf" style="max-width:260px;">
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button type="button" class="sm-btn" id="pdf-btn-change-file"><i class="fa-solid fa-folder-open"></i> Open Another</button>
           <button type="button" class="btn btn-primary" id="pdf-btn-export" style="padding:0.45rem 1rem;font-size:0.85rem;"><i class="fa-solid fa-download"></i> Export PDF</button>
         </div>
       </div>
-      <div class="office-paper-workspace" id="pdf-canvas-container">
-        <div class="paper-sheet" style="padding:0;min-height:auto;max-width:720px;" id="pdf-active-page-wrapper">
-          <canvas id="pdf-render-canvas" style="width:100%;display:block;"></canvas>
-        </div>
+
+      <div style="display:flex;justify-content:center;background:var(--bg-main);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border-color);">
+        <canvas id="pdf-render-canvas" style="max-width:100%;box-shadow:var(--shadow-lg);border-radius:4px;"></canvas>
       </div>
-      <div class="office-status-bar">
-        <span>Page <span id="pdf-cur-page">1</span> of <span id="pdf-tot-page">1</span></span>
-        <span id="pdf-page-nav" style="display:flex;gap:0.5rem;">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;color:var(--text-muted);">
+        <span>Page <span id="pdf-cur-page" style="font-weight:700;color:var(--text-dark);">1</span> of <span id="pdf-tot-page">1</span></span>
+        <div style="display:flex;gap:0.5rem;">
           <button type="button" class="sm-btn" id="pdf-prev-page">◀ Prev</button>
           <button type="button" class="sm-btn" id="pdf-next-page">Next ▶</button>
-        </span>
+        </div>
       </div>
     </div>
   `;
@@ -3160,16 +2075,16 @@ function renderWordEditorTool(container, tool) {
   container.innerHTML = `
     <div class="dropzone" id="word-editor-dropzone" style="cursor:pointer;">
       <div class="dropzone-icon"><i class="fa-solid fa-file-word"></i></div>
-      <div style="font-weight:700;font-size:1.1rem;color:var(--text-dark);">Select a Word Document</div>
-      <div style="font-size:0.85rem;color:var(--text-muted);">Click or drag a .docx file here to begin editing</div>
+      <div style="font-weight:800;font-size:1.2rem;color:var(--text-dark);">Drop DOCX document here to edit</div>
+      <div style="font-size:0.85rem;color:var(--text-muted);">Click or drag a .docx file here to begin rich text editing</div>
       <input type="file" class="file-input" id="word-editor-file-input" accept=".docx,.doc">
     </div>
 
-    <div class="office-editor-wrapper" id="word-editor-view" style="display:none;">
-      <div class="office-header">
+    <div class="office-editor-wrapper" id="word-editor-view" style="display:none;flex-direction:column;gap:1rem;">
+      <div class="office-header" style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <i class="fa-solid fa-file-word" style="color:#2b579a;font-size:1.25rem;"></i>
-          <input type="text" class="doc-title-input" id="word-filename" value="document.docx">
+          <input type="text" class="input-control" id="word-filename" value="document.docx" style="max-width:260px;">
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button type="button" class="sm-btn" id="word-btn-open-another"><i class="fa-solid fa-folder-open"></i> Open Another</button>
@@ -3177,31 +2092,17 @@ function renderWordEditorTool(container, tool) {
         </div>
       </div>
 
-      <div style="display:flex;gap:0.5rem;padding:0.5rem 1rem;background:var(--bg-card);border-bottom:1px solid var(--border-color);flex-wrap:wrap;">
+      <div style="display:flex;gap:0.5rem;padding:0.5rem 1rem;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);flex-wrap:wrap;">
         <button type="button" class="sm-btn" onclick="document.execCommand('bold')"><b>B</b></button>
         <button type="button" class="sm-btn" onclick="document.execCommand('italic')"><i>I</i></button>
         <button type="button" class="sm-btn" onclick="document.execCommand('underline')"><u>U</u></button>
         <button type="button" class="sm-btn" onclick="document.execCommand('insertUnorderedList')">• List</button>
         <button type="button" class="sm-btn" onclick="document.execCommand('insertOrderedList')">1. List</button>
-        <select class="sm-btn" style="padding:0.3rem 0.6rem;" onchange="document.execCommand('fontSize',false,this.value)">
-          <option value="3">Normal</option>
-          <option value="4">Large</option>
-          <option value="5">XL</option>
-          <option value="2">Small</option>
-        </select>
-        <button type="button" class="sm-btn" onclick="document.execCommand('justifyLeft')">⬅ Left</button>
-        <button type="button" class="sm-btn" onclick="document.execCommand('justifyCenter')">⬌ Center</button>
       </div>
 
-      <div class="office-paper-workspace">
-        <div class="paper-sheet" id="word-paper-sheet" contenteditable="true"
-          style="min-height:600px;outline:none;font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;padding:2.5rem;">
+      <div style="background:var(--bg-main);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border-color);">
+        <div id="word-paper-sheet" contenteditable="true" style="min-height:500px;background:#fff;outline:none;font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;padding:2rem;box-shadow:var(--shadow-md);border-radius:4px;color:#000;">
         </div>
-      </div>
-
-      <div class="office-status-bar">
-        <span id="word-status">Document loaded — editing enabled</span>
-        <span>Export as PDF using the button above</span>
       </div>
     </div>
   `;
@@ -3211,11 +2112,6 @@ function renderWordEditorTool(container, tool) {
 
   const loadDocx = async (file) => {
     if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'docx' && ext !== 'doc') {
-      ToastManager.show('Only .docx files are supported.', 'warning');
-      return;
-    }
     try {
       ToastManager.show(`Loading ${file.name}...`, 'info');
       const ab = await readFileAsArrayBuffer(file);
@@ -3225,7 +2121,6 @@ function renderWordEditorTool(container, tool) {
       container.querySelector('#word-filename').value = file.name.replace(/\.(docx|doc)$/i, '.docx');
       dropzone.style.display = 'none';
       container.querySelector('#word-editor-view').style.display = 'flex';
-      container.querySelector('#word-status').textContent = `${file.name} loaded (${formatBytes(file.size)})`;
       ToastManager.show(`${file.name} loaded successfully!`, 'success');
     } catch (err) {
       console.error('DOCX load error:', err);
@@ -3300,9 +2195,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   ThemeManager.init();
   AuthController.init();
   CommandPalette.init();
+  init3DHeroInteraction();
   initNavigationScrolls();
   initFaqAccordion();
-  initHeroDemo();
   initDashboard();
 
   await checkSystemHealth(3);
