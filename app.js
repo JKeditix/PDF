@@ -1,4 +1,4 @@
-// PDFNova — 3D Document Laboratory & Complete Engine
+// PDFNova LAB — 3D Document Laboratory & Complete Engine
 // Real implementations for PDF, Document, Image, AI, and QR tools.
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -569,11 +569,11 @@ async function protectPdf(files, options = {}) {
       body: formData
     });
   } catch (err) {
-    throw new Error('PDFNova server is unavailable. Please try again.');
+    throw new Error('PDFNova LAB server is unavailable. Please try again.');
   }
 
   if (!res.ok) {
-    let errMsg = 'PDFNova server is unavailable. Please try again.';
+    let errMsg = 'PDFNova LAB server is unavailable. Please try again.';
     try {
       const errData = await res.json();
       if (errData && errData.message) errMsg = errData.message;
@@ -650,11 +650,11 @@ async function openQrGenerator(container, tool) {
     if (val === 'url') {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Target URL:</label><input id="qr-inp-url" class="input-control" type="url" value="https://pdfnova.com">`;
     } else if (val === 'text') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3">Hello from PDFNova 3D Document Laboratory!</textarea>`;
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3">Hello from PDFNova LAB 3D Document Laboratory!</textarea>`;
     } else if (val === 'email') {
       inputsDiv.innerHTML = `
         <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Recipient Email:</label><input id="qr-inp-email" class="input-control" type="email" value="contact@example.com">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject:</label><input id="qr-inp-subject" class="input-control" type="text" value="Document Shared via PDFNova">`;
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject:</label><input id="qr-inp-subject" class="input-control" type="text" value="Document Shared via PDFNova LAB">`;
     } else if (val === 'phone') {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="+1234567890">`;
     } else if (val === 'wifi') {
@@ -675,7 +675,7 @@ async function openQrGenerator(container, tool) {
     const v = typeSelect.value;
     const gv = id => { const el = container.querySelector(`#${id}`); return el ? el.value : ''; };
     if (v === 'url')   return gv('qr-inp-url') || 'https://pdfnova.com';
-    if (v === 'text')  return gv('qr-inp-text') || 'PDFNova';
+    if (v === 'text')  return gv('qr-inp-text') || 'PDFNova LAB';
     if (v === 'email') return `mailto:${gv('qr-inp-email')}?subject=${encodeURIComponent(gv('qr-inp-subject'))}`;
     if (v === 'phone') return `tel:${gv('qr-inp-phone')}`;
     if (v === 'wifi')  return `WIFI:S:${gv('qr-inp-ssid')};T:WPA;P:${gv('qr-inp-wifipass')};;`;
@@ -723,7 +723,7 @@ async function openQrGenerator(container, tool) {
       canvas.toBlob(async blob => {
         const file = new File([blob], 'qrcode.png', { type: 'image/png' });
         try {
-          await navigator.share({ title: 'PDFNova QR Code', text: 'Scannable QR Code generated on PDFNova', files: [file] });
+          await navigator.share({ title: 'PDFNova LAB QR Code', text: 'Scannable QR Code generated on PDFNova LAB', files: [file] });
           ToastManager.show('QR Code shared!', 'success');
         } catch(_) {}
       });
@@ -1232,7 +1232,7 @@ async function checkSystemHealth(maxAttempts = 3) {
   const badge = document.getElementById('sys-status-badge');
   const text  = document.getElementById('sys-status-text');
 
-  if (text) text.textContent = 'Starting PDFNova services...';
+  if (text) text.textContent = 'Starting PDFNova LAB services...';
   if (badge) badge.className = 'status-badge checking';
 
   const delays = [2000, 3000, 5000];
@@ -1249,7 +1249,7 @@ async function checkSystemHealth(maxAttempts = 3) {
         }
       }
     } catch (e) {
-      console.warn(`[PDFNova] Health check attempt ${i + 1} failed:`, e);
+      console.warn(`[PDFNova LAB] Health check attempt ${i + 1} failed:`, e);
     }
     if (i < maxAttempts - 1) {
       await new Promise(r => setTimeout(r, delays[i]));
@@ -1932,7 +1932,7 @@ function renderResultScreen({ toolName, filename, metrics, onDownload }) {
     shareBtn.onclick = async () => {
       if (navigator.share) {
         try {
-          await navigator.share({ title: `PDFNova - ${toolName}`, text: `Check out ${filename} processed on PDFNova!` });
+          await navigator.share({ title: `PDFNova LAB - ${toolName}`, text: `Check out ${filename} processed on PDFNova LAB!` });
           ToastManager.show('Link shared successfully!', 'success');
         } catch (_) {}
       } else {
@@ -2177,10 +2177,10 @@ async function runToolProcessor(tool, selectedFiles, container) {
       throw new Error(`Handler function for ${tool.name} is not defined.`);
     }
   } catch (err) {
-    console.error(`[PDFNova Engine] Error processing ${tool.name}:`, err);
+    console.error(`[PDFNova LAB Engine] Error processing ${tool.name}:`, err);
     let errMsg = err.message || 'The tool could not produce a valid output file.';
     if (errMsg.includes('Failed to fetch')) {
-      errMsg = 'PDFNova server is unavailable. Please try again.';
+      errMsg = 'PDFNova LAB server is unavailable. Please try again.';
     }
     ToastManager.show(errMsg, 'danger');
   }
@@ -2204,7 +2204,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const badge = document.getElementById('sys-status-badge');
   if (badge) {
     badge.onclick = async () => {
-      ToastManager.show('Checking PDFNova backend health...', 'info');
+      ToastManager.show('Checking PDFNova LAB backend health...', 'info');
       const connected = await checkSystemHealth(2);
       if (connected) ToastManager.show('Backend connected!', 'success');
       else ToastManager.show('Backend offline. Please start server or check network.', 'danger');
