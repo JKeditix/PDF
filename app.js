@@ -610,10 +610,10 @@ async function openQrGenerator(container, tool) {
         <div>
           <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Content Type:</label>
           <select id="qr-type-select" class="input-control">
-            <option value="url" selected>Website URL</option>
+            <option value="phone" selected>Phone Number</option>
+            <option value="url">Website URL</option>
             <option value="text">Plain Text</option>
             <option value="email">Email Message</option>
-            <option value="phone">Phone Number</option>
             <option value="wifi">Wi-Fi Network</option>
             <option value="vcard">Contact Card (vCard)</option>
             <option value="share">Share Current Page URL</option>
@@ -628,8 +628,10 @@ async function openQrGenerator(container, tool) {
       <div id="qr-inputs-container"></div>
 
       <div style="display:flex;flex-direction:column;align-items:center;gap:1.25rem;padding:1.5rem;background:var(--bg-main);border-radius:var(--radius-lg);border:1px solid var(--border-color);">
-        <canvas id="qr-canvas" width="240" height="240" style="background:#fff;padding:12px;border-radius:12px;border:1px solid var(--border-color);box-shadow:var(--shadow-md);"></canvas>
+        <div id="qr-display-wrapper" style="background:#ffffff;padding:16px;border-radius:12px;border:1px solid var(--border-color);box-shadow:var(--shadow-md);min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden;"></div>
         
+        <div id="qr-payload-preview" style="font-size:0.78rem;color:var(--text-muted);font-family:monospace;word-break:break-all;text-align:center;max-width:340px;"></div>
+
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;">
           <button type="button" class="btn btn-primary" id="btn-download-qr"><i class="fa-solid fa-download"></i> Download QR Code PNG</button>
           <button type="button" class="btn btn-secondary" id="btn-share-qr"><i class="fa-solid fa-share-nodes"></i> Share QR</button>
@@ -641,30 +643,38 @@ async function openQrGenerator(container, tool) {
   const typeSelect = container.querySelector('#qr-type-select');
   const colorFg    = container.querySelector('#qr-color-fg');
   const inputsDiv  = container.querySelector('#qr-inputs-container');
-  const canvas     = container.querySelector('#qr-canvas');
+  const displayWrapper = container.querySelector('#qr-display-wrapper');
+  const payloadPreview = container.querySelector('#qr-payload-preview');
   const downloadBtn= container.querySelector('#btn-download-qr');
   const shareBtn   = container.querySelector('#btn-share-qr');
 
   const renderInputs = () => {
     const val = typeSelect.value;
-    if (val === 'url') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Target URL:</label><input id="qr-inp-url" class="input-control" type="url" value="https://pdfnova.com">`;
+    if (val === 'phone') {
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="8824044491" placeholder="8824044491">`;
+    } else if (val === 'url') {
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Target URL:</label><input id="qr-inp-url" class="input-control" type="url" value="https://example.com" placeholder="https://example.com">`;
     } else if (val === 'text') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3">Hello from PDFNova LAB 3D Document Laboratory!</textarea>`;
+      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Text Content:</label><textarea id="qr-inp-text" class="input-control" rows="3" placeholder="Hello PDFNova">Hello PDFNova</textarea>`;
     } else if (val === 'email') {
       inputsDiv.innerHTML = `
-        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Recipient Email:</label><input id="qr-inp-email" class="input-control" type="email" value="contact@example.com">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject:</label><input id="qr-inp-subject" class="input-control" type="text" value="Document Shared via PDFNova LAB">`;
-    } else if (val === 'phone') {
-      inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Phone Number:</label><input id="qr-inp-phone" class="input-control" type="tel" value="+1234567890">`;
+        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Recipient Email:</label><input id="qr-inp-email" class="input-control" type="email" value="test@example.com" placeholder="test@example.com">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Subject (optional):</label><input id="qr-inp-subject" class="input-control" type="text" placeholder="Subject">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Body (optional):</label><textarea id="qr-inp-body" class="input-control" rows="2" placeholder="Body message"></textarea>`;
     } else if (val === 'wifi') {
       inputsDiv.innerHTML = `
-        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">SSID Network Name:</label><input id="qr-inp-ssid" class="input-control" type="text" value="PDFNova_Lab_WiFi">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Password:</label><input id="qr-inp-wifipass" class="input-control" type="password" value="secret123">`;
+        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">SSID Network Name:</label><input id="qr-inp-ssid" class="input-control" type="text" value="TestWiFi" placeholder="TestWiFi">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Password:</label><input id="qr-inp-wifipass" class="input-control" type="text" value="Test12345" placeholder="Test12345">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Security Mode:</label>
+        <select id="qr-inp-wifisec" class="input-control">
+          <option value="WPA" selected>WPA/WPA2</option>
+          <option value="WEP">WEP</option>
+          <option value="nopass">None (Open)</option>
+        </select>`;
     } else if (val === 'vcard') {
       inputsDiv.innerHTML = `
-        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Full Name:</label><input id="qr-inp-name" class="input-control" type="text" value="John Doe">
-        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Phone:</label><input id="qr-inp-vphone" class="input-control" type="tel" value="+15550199">`;
+        <label style="font-weight:700;display:block;margin-bottom:0.3rem;">Full Name:</label><input id="qr-inp-name" class="input-control" type="text" value="John Doe" placeholder="John Doe">
+        <label style="font-weight:700;display:block;margin:0.5rem 0 0.3rem;">Phone Number:</label><input id="qr-inp-vphone" class="input-control" type="tel" value="+919999999999" placeholder="+919999999999">`;
     } else {
       inputsDiv.innerHTML = `<label style="font-weight:700;display:block;margin-bottom:0.3rem;">Share Link:</label><input id="qr-inp-share" class="input-control" type="url" value="${window.location.href}" readonly>`;
     }
@@ -673,62 +683,142 @@ async function openQrGenerator(container, tool) {
 
   const getQrText = () => {
     const v = typeSelect.value;
-    const gv = id => { const el = container.querySelector(`#${id}`); return el ? el.value : ''; };
-    if (v === 'url')   return gv('qr-inp-url') || 'https://pdfnova.com';
-    if (v === 'text')  return gv('qr-inp-text') || 'PDFNova LAB';
-    if (v === 'email') return `mailto:${gv('qr-inp-email')}?subject=${encodeURIComponent(gv('qr-inp-subject'))}`;
-    if (v === 'phone') return `tel:${gv('qr-inp-phone')}`;
-    if (v === 'wifi')  return `WIFI:S:${gv('qr-inp-ssid')};T:WPA;P:${gv('qr-inp-wifipass')};;`;
-    if (v === 'vcard') return `BEGIN:VCARD\nVERSION:3.0\nFN:${gv('qr-inp-name')}\nTEL:${gv('qr-inp-vphone')}\nEND:VCARD`;
+    const gv = id => { const el = container.querySelector(`#${id}`); return el ? el.value.trim() : ''; };
+    
+    if (v === 'phone') {
+      const raw = gv('qr-inp-phone');
+      if (!raw) return 'tel:8824044491';
+      return raw.startsWith('tel:') ? raw : `tel:${raw}`;
+    }
+    if (v === 'url') {
+      const raw = gv('qr-inp-url');
+      if (!raw) return 'https://example.com';
+      return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+    }
+    if (v === 'text') {
+      return gv('qr-inp-text') || 'Hello PDFNova';
+    }
+    if (v === 'email') {
+      const email = gv('qr-inp-email') || 'test@example.com';
+      const subject = gv('qr-inp-subject');
+      const body = gv('qr-inp-body');
+      let mailto = `mailto:${email}`;
+      const params = [];
+      if (subject) params.push(`subject=${encodeURIComponent(subject)}`);
+      if (body) params.push(`body=${encodeURIComponent(body)}`);
+      if (params.length > 0) mailto += `?${params.join('&')}`;
+      return mailto;
+    }
+    if (v === 'wifi') {
+      const ssid = gv('qr-inp-ssid') || 'TestWiFi';
+      const pass = gv('qr-inp-wifipass') || 'Test12345';
+      const sec  = gv('qr-inp-wifisec') || 'WPA';
+      return `WIFI:T:${sec};S:${ssid};P:${pass};;`;
+    }
+    if (v === 'vcard') {
+      const name = gv('qr-inp-name') || 'John Doe';
+      const phone = gv('qr-inp-vphone') || '+919999999999';
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${phone}\nEND:VCARD`;
+    }
     return gv('qr-inp-share') || window.location.href;
   };
 
-  const updateQr = async () => {
-    const text = getQrText();
+  const updateQr = () => {
+    const payload = getQrText();
     const fgColor = colorFg.value || '#000000';
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 240, 240);
+
+    if (payloadPreview) {
+      payloadPreview.textContent = payload ? `Payload: ${payload}` : '';
+    }
+
+    if (!displayWrapper) return;
+
+    // DOM Cleanup: clear previous QR instances
+    displayWrapper.innerHTML = '';
+
+    if (typeof window.QRCode !== 'function') {
+      console.error('window.QRCode library is not loaded or unavailable.');
+      displayWrapper.innerHTML = '<div style="color:var(--danger);font-size:0.85rem;font-weight:700;padding:1rem;text-align:center;">Unable to generate QR code.</div>';
+      return;
+    }
 
     try {
-      if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
-        await window.QRCode.toCanvas(canvas, text, { width: 240, margin: 2, color: { dark: fgColor, light: '#ffffff' } });
-      } else if (window.qrcode && typeof window.qrcode.toCanvas === 'function') {
-        await window.qrcode.toCanvas(canvas, text, { width: 240, margin: 2, color: { dark: fgColor, light: '#ffffff' } });
-      } else {
-        ctx.fillStyle = fgColor; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('QR Code Generated', 120, 110);
-        ctx.fillText(text.slice(0, 24), 120, 135);
-      }
-    } catch(e) {
-      ctx.fillStyle = '#000000'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('QR Code Error', 120, 120);
+      const correctLevel = window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : 2;
+      new window.QRCode(displayWrapper, {
+        text: payload,
+        width: 240,
+        height: 240,
+        colorDark: fgColor,
+        colorLight: '#ffffff',
+        correctLevel: correctLevel
+      });
+    } catch (err) {
+      console.error('QRCode generation error:', err);
+      displayWrapper.innerHTML = '<div style="color:var(--danger);font-size:0.85rem;font-weight:700;padding:1rem;text-align:center;">Unable to generate QR code.</div>';
     }
+  };
+
+  const getQrBlob = async () => {
+    if (!displayWrapper) throw new Error('QR container missing.');
+
+    const canvas = displayWrapper.querySelector('canvas');
+    if (canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob && blob.size > 0) resolve(blob);
+          else reject(new Error('Failed to generate PNG blob from canvas.'));
+        }, 'image/png');
+      });
+    }
+
+    const img = displayWrapper.querySelector('img');
+    if (img && img.src) {
+      if (img.src.startsWith('data:image')) {
+        const res = await fetch(img.src);
+        const blob = await res.blob();
+        if (blob && blob.size > 0) return blob;
+      }
+    }
+
+    throw new Error('No valid QR matrix element found.');
   };
 
   typeSelect.onchange = renderInputs;
   colorFg.onchange    = updateQr;
   inputsDiv.oninput   = updateQr;
+  inputsDiv.onchange  = updateQr;
   renderInputs();
 
-  downloadBtn.onclick = () => {
-    canvas.toBlob(blob => {
+  downloadBtn.onclick = async () => {
+    try {
+      const blob = await getQrBlob();
       validateOutput(blob, 'image/png');
       triggerDownload(blob, 'qrcode_pdfnova.png');
       ToastManager.show('QR Code downloaded as PNG image!', 'success');
-    });
+    } catch (err) {
+      console.error('Download QR Error:', err);
+      ToastManager.show('Unable to generate QR code download.', 'danger');
+    }
   };
 
   shareBtn.onclick = async () => {
-    if (navigator.share) {
-      canvas.toBlob(async blob => {
+    try {
+      const blob = await getQrBlob();
+      if (navigator.share) {
         const file = new File([blob], 'qrcode.png', { type: 'image/png' });
-        try {
-          await navigator.share({ title: 'PDFNova LAB QR Code', text: 'Scannable QR Code generated on PDFNova LAB', files: [file] });
-          ToastManager.show('QR Code shared!', 'success');
-        } catch(_) {}
-      });
-    } else {
-      ToastManager.show('Sharing link copied to clipboard!', 'info');
+        await navigator.share({
+          title: 'PDFNova LAB QR Code',
+          text: 'Scannable QR Code generated on PDFNova LAB',
+          files: [file]
+        });
+        ToastManager.show('QR Code shared successfully!', 'success');
+      } else {
+        triggerDownload(blob, 'qrcode_pdfnova.png');
+        ToastManager.show('Web Share API unsupported. Downloaded QR image instead.', 'info');
+      }
+    } catch (err) {
+      console.error('Share QR Error:', err);
+      ToastManager.show('Unable to share QR code.', 'danger');
     }
   };
 }
